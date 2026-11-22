@@ -29,8 +29,9 @@ function diagnosticError(error) {
   return details;
 }
 
-function diagnostic() {
-  // Diagnostic console output is intentionally disabled in normal builds.
+function diagnostic(message, details) {
+  // Test build for #1388: the service start steps go to the Console debug.
+  console.warn("[P2P test] service start:", message, details ? JSON.stringify(details).slice(0, 400) : "");
 }
 
 function withTimeout(promise, timeoutMs, message) {

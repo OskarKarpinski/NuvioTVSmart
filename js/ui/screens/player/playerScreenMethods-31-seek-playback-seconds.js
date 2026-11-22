@@ -1,6 +1,7 @@
 import { syncHtmlSubtitleClearance } from "./subtitleOverlayClearance.js";
 /* eslint-disable no-unused-vars */
 import * as internals from "./playerScreenContext.js";
+import { p2pDiag } from "../../../core/diagnostics/p2pTestDiagnostics.js";
 
 export function createPlayerScreenMethods31() {
   const { PlayerController, PlayerSettingsStore, t, escapeHtml, formatNextEpisodeAirDate, TrackingScrobbleService } = internals;
@@ -116,6 +117,14 @@ export function createPlayerScreenMethods31() {
       restore.timeSeconds = targetSeconds;
       restore.lastAttemptAt = now;
       restore.attempts = Number(restore.attempts || 0) + 1;
+      if (restore.attempts <= 3) {
+        p2pDiag("resume restore attempt", {
+          attempt: restore.attempts,
+          target: Math.round(targetSeconds),
+          current: Math.round(currentSeconds || 0),
+          duration: Math.round(durationSeconds || 0)
+        });
+      }
 
       const didSeek = this.seekPlaybackSeconds(targetSeconds);
       if (!didSeek && restore.attempts >= 8) {

@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import * as internals from "./playerController.js";
+import { p2pDiag } from "../diagnostics/p2pTestDiagnostics.js";
 
 export function createPlayerControllerMethods09() {
   const { Platform, logTizenAvPlayDebug, isTizenAvPlayDebugEnabled } = internals;
@@ -31,6 +32,12 @@ export function createPlayerControllerMethods09() {
       this.playbackEngine = this.getPlatformAvplayEngineName();
       this.emitVideoEvent("waiting", { playbackEngine: this.playbackEngine });
 
+      p2pDiag(
+        "player open",
+        String(url || "")
+          .replace(/^https?:\/\/[^/]+/, "")
+          .slice(0, 120)
+      );
       try {
         avplay.open(this.avplayUrl);
         // Do not expose the AVPlay session to resize/focus callbacks until open
@@ -54,6 +61,7 @@ export function createPlayerControllerMethods09() {
             if (!this.avplayBufferingStartedAt) {
               this.avplayBufferingStartedAt = Date.now();
             }
+            p2pDiag("player buffering start");
             this.avplayBufferingProgress = null;
             this.avplayReady = false;
             this.emitVideoEvent("waiting", { playbackEngine: this.playbackEngine });
@@ -83,6 +91,7 @@ export function createPlayerControllerMethods09() {
             if (this.avplayBufferingStartedAt) {
               this.avplayLastBufferingDurationMs = Math.max(0, Date.now() - this.avplayBufferingStartedAt);
             }
+            p2pDiag(`player buffering complete after ${this.avplayLastBufferingDurationMs || 0}ms`);
             this.avplayBufferingStartedAt = 0;
             if (this.avplaySeekInFlight) {
               return;
@@ -166,6 +175,7 @@ export function createPlayerControllerMethods09() {
             if (!this.isPlaybackRequestActive(playToken, url)) {
               return;
             }
+            p2pDiag("player ERROR", String(errorValue || ""));
             const avplayErrorDetail = this.getLastAvPlayErrorDiagnostic();
             const avplaySnapshot = this.getAvPlayDiagnosticSnapshot();
             this.clearAvPlaySeekTimeout();
@@ -191,6 +201,7 @@ export function createPlayerControllerMethods09() {
             if (!this.isPlaybackRequestActive(playToken, url)) {
               return;
             }
+            p2pDiag("player error detail", `${errorType} ${errorMessage}`);
             const detail = this.normalizeAvPlayErrorDiagnostic(errorType, errorMessage);
             this.avplayLastErrorDiagnostic = detail;
             if (Platform.isTizen() && detail) {
@@ -206,10 +217,28 @@ export function createPlayerControllerMethods09() {
       // configuring the display and starting prepareAsync.
       this.setAvPlayDisplayRect();
 
+      const prepareAt = Date.now();
       const onPrepared = () => {
         if (!this.isUsingAvPlay() || !this.isPlaybackRequestActive(playToken, url)) {
           return;
         }
+        p2pDiag(`player prepared in ${Date.now() - prepareAt}ms`, {
+          startupAudioGate: Boolean(this.startupAudioGateActive),
+          deferredSeekMs: Number(this.avplayDeferredSeekMs || 0),
+          seekInFlight: Boolean(this.avplaySeekInFlight)
+        });
+        // Test build: report what is still holding the start 20 s after prepare.
+        setTimeout(() => {
+          if (!this.isUsingAvPlay() || !this.isPlaybackRequestActive(playToken, url) || this.isPlaying) return;
+          p2pDiag("NOT PLAYING 20s after prepare", {
+            state: this.getAvPlayState?.(),
+            ready: Boolean(this.avplayReady),
+            gate: Boolean(this.startupAudioGateActive),
+            seekInFlight: Boolean(this.avplaySeekInFlight),
+            queuedStart: Boolean(this.avplayStartAfterSeek),
+            timeMs: Number(this.avplayCurrentTimeMs || 0)
+          });
+        }, 20000);
         this.avplayReady = true;
         this.avplayEnded = false;
         this.reapplyTizenAvPlayDisplayRect();
@@ -226,6 +255,8 @@ export function createPlayerControllerMethods09() {
         this.avplayDeferredSeekMs = 0;
         if (deferredSeekMs > 0 && !this.avplaySeekInFlight) {
           this.seekAvPlayTo(deferredSeekMs);
+        } else if (deferredSeekMs > 0) {
+          p2pDiag("deferred seek dropped", { deferredSeekMs, inFlight: Boolean(this.avplaySeekInFlight) });
         }
         if (this.startupAudioGateActive) {
           return;
@@ -238,6 +269,7 @@ export function createPlayerControllerMethods09() {
         if (!this.isPlaybackRequestActive(playToken, url)) {
           return;
         }
+        p2pDiag(`player prepare FAILED after ${Date.now() - prepareAt}ms`, String(errorValue || ""));
         const avplayErrorDetail = this.getLastAvPlayErrorDiagnostic();
         const avplaySnapshot = this.getAvPlayDiagnosticSnapshot();
         this.lastPlaybackErrorCode = this.mapAvPlayErrorToMediaCode(errorValue);
@@ -256,6 +288,7 @@ export function createPlayerControllerMethods09() {
 
       try {
         if (typeof avplay.prepareAsync === "function") {
+          p2pDiag("player prepare start");
           avplay.prepareAsync(onPrepared, onPrepareError);
         } else if (typeof avplay.prepare === "function") {
           avplay.prepare();

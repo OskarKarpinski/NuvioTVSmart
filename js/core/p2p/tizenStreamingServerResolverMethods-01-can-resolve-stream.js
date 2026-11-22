@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import * as internals from "./tizenStreamingServerResolver.js";
+import { p2pDiag, p2pDiagStart, startP2pStatsSampler } from "../diagnostics/p2pTestDiagnostics.js";
 
 export function createTizenStreamingServerResolverMethods01() {
   const {
@@ -137,7 +138,10 @@ export function createTizenStreamingServerResolverMethods01() {
       try {
         let baseUrl = "";
         const baseUrlKind = "local-service";
+        p2pDiagStart("P2P resolve start", { infoHash, name: String(stream?.title || stream?.name || "").slice(0, 120) });
+        const serviceAt = Date.now();
         const localService = await TizenEngineFsService.ensureStarted({ purpose: "p2p" });
+        p2pDiag(`service ready in ${Date.now() - serviceAt}ms`, { status: localService.status, detail: localService.detail || "" });
         if (localService.status === "success" && localService.baseUrl) {
           baseUrl = localService.baseUrl;
         } else {
@@ -155,6 +159,12 @@ export function createTizenStreamingServerResolverMethods01() {
         const season = Number(context?.season);
         const episode = Number(context?.episode);
         const needsCreate = !hasExplicitFileIdx || trackerSources.length > 0;
+        const createAt = Date.now();
+        p2pDiag("torrent create start", {
+          needsCreate,
+          trackers: trackerSources.length,
+          explicitFileIdx: hasExplicitFileIdx ? explicitFileIdx : null
+        });
         const createJson = needsCreate
           ? await createTorrent(baseUrl, {
               infoHash,
@@ -164,6 +174,9 @@ export function createTizenStreamingServerResolverMethods01() {
               episode: Number.isFinite(episode) ? episode : null
             })
           : { infoHash, fileIdx: explicitFileIdx };
+        p2pDiag(`torrent create done in ${Date.now() - createAt}ms`, {
+          files: Array.isArray(createJson?.files) ? createJson.files.length : null
+        });
         const fileIdx = selectFileIdx(stream, createJson);
         if (!Number.isFinite(fileIdx) || fileIdx < 0) {
           return {
@@ -174,6 +187,12 @@ export function createTizenStreamingServerResolverMethods01() {
         const sources = needsCreate && trackerSources.length ? buildPeerSearchSources(infoHash, trackerSources) : [];
         const playbackUrl = buildPlaybackUrl(baseUrl, infoHash, fileIdx, sources);
         const filename = getFilename(createJson, fileIdx);
+        p2pDiag("P2P resolved", {
+          fileIdx,
+          filename: filename || null,
+          sizeMb: Math.round(Number(createJson?.files?.[fileIdx]?.length || 0) / 1048576) || null
+        });
+        startP2pStatsSampler(baseUrl, infoHash, fileIdx);
         logTizenP2pDebug("TizenStreamingServerResolver: P2P stream resolved", {
           baseUrl,
           playbackUrl,
@@ -195,6 +214,7 @@ export function createTizenStreamingServerResolverMethods01() {
           })
         };
       } catch (error) {
+        p2pDiag("P2P resolve FAILED", error?.message || String(error));
         return {
           status: "error",
           detail: error?.message || String(error || "Tizen streaming server resolve failed")

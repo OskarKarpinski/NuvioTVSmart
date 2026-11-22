@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import * as internals from "./playerScreenContext.js";
+import { p2pDiag } from "../../../core/diagnostics/p2pTestDiagnostics.js";
 
 export function createPlayerScreenMethods30() {
   const {
@@ -54,6 +55,18 @@ export function createPlayerScreenMethods30() {
       PlayerController.setStartupAudioGate?.(true, {
         pauseNativePlayback: !allowNativePlayback
       });
+      clearTimeout(this.startupAudioGateDiagTimer);
+      this.startupAudioGateDiagTimer = setTimeout(() => {
+        if (!this.startupAudioGateActive) return;
+        p2pDiag("startup audio gate still closed after 4s", {
+          readyState: PlayerController.getPlaybackReadyState?.(),
+          audioTracks: this.hasAudioTracksAvailable?.() ? 1 : 0,
+          preferenceApplying: Boolean(this.startupAudioPreferenceApplying),
+          preferenceApplied: Boolean(this.startupAudioPreferenceApplied),
+          pendingRestore: Boolean(this.pendingPlaybackRestore),
+          deadlineSet: Number(this.startupAudioGateDeadline || 0) > 0
+        });
+      }, 4000);
     },
     releaseStartupAudioGate({ resume = true } = {}) {
       if (!this.startupAudioGateActive) {
@@ -67,6 +80,13 @@ export function createPlayerScreenMethods30() {
       // normal playback can interrupt the native decoder on some LG TVs.
       this.startupAudioFallbackApplied = false;
       this.startupAudioTrackSetSignature = "";
+      clearTimeout(this.startupAudioGateDiagTimer);
+      p2pDiag("startup audio gate released", {
+        resume,
+        readyState: PlayerController.getPlaybackReadyState?.(),
+        atDeadline: Number(this.startupAudioGateDeadline || 0) > 0 && Date.now() >= Number(this.startupAudioGateDeadline || 0),
+        pendingRestore: Boolean(this.pendingPlaybackRestore)
+      });
       PlayerController.setStartupAudioGate?.(false, { resume });
     },
     syncStartupGateAndParentalGuide() {

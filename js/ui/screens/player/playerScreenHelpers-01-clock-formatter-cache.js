@@ -240,6 +240,10 @@ export const STARTUP_AUDIO_PREFERENCE_RETRY_INTERVAL_MS = 250;
 
 export const WEBOS_REMOTE_MKV_AUDIO_GATE_MAX_WAIT_MS = 30000;
 
+// Tizen track discovery normally settles in a second or two. A gate with no
+// deadline leaves the player in READY forever when it does not.
+export const TIZEN_AUDIO_GATE_MAX_WAIT_MS = 10000;
+
 export const WEBOS_NATIVE_STARTUP_LOADING_EXTENSION_MS = 120000;
 
 export const WEBOS_HLS_REBUFFER_STALL_TIMEOUT_MS = 15000;

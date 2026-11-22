@@ -1,4 +1,5 @@
 import { Platform } from "../../platform/index.js";
+import { p2pDiag } from "../../core/diagnostics/p2pTestDiagnostics.js";
 import { TizenEngineFsService } from "../../platform/tizen/tizenEngineFsService.js";
 import { withRequestTimeout } from "../../core/network/requestTimeout.js";
 import { fetchMatroskaTracks } from "./matroskaTrackMetadata.js";
@@ -273,7 +274,13 @@ export const localMediaTracksRepository = {
         // The packaged service may take far longer than playback startup to
         // answer, so read the container header at the same time instead of
         // serializing the two sources.
+        const headerAt = Date.now();
+        p2pDiag("track info: header read + /tracks start");
         const headerPromise = fetchMatroskaTracks(targetUrl);
+        void Promise.resolve(headerPromise).then(
+          (tracks) => p2pDiag(`track info: header read done in ${Date.now() - headerAt}ms`, { tracks: Array.isArray(tracks) ? tracks.length : null }),
+          (error) => p2pDiag(`track info: header read FAILED after ${Date.now() - headerAt}ms`, error?.message || String(error))
+        );
         // Without AbortController a timed-out request stays open, so there the
         // request is not timed out at all: retries share it until the service
         // answers, and the grace races below keep startup bounded.
@@ -291,10 +298,12 @@ export const localMediaTracksRepository = {
                   }
                 );
                 rememberLocalMediaServerUrl(baseUrl);
+                p2pDiag(`track info: /tracks answered in ${Date.now() - headerAt}ms`, { tracks: Array.isArray(payload) ? payload.length : null });
                 return Array.isArray(payload) ? payload : [];
               }
-            } catch (_) {
+            } catch (error) {
               // Older Tizen TVs may have AVPlay but no usable packaged web service.
+              p2pDiag(`track info: /tracks FAILED after ${Date.now() - headerAt}ms`, error?.message || String(error));
             }
             return [];
           })();
@@ -306,6 +315,7 @@ export const localMediaTracksRepository = {
           servicePromise,
           delay(TIZEN_TRACK_SERVICE_GRACE_MS).then(() => null)
         ]);
+        if (serviceTracks === null) p2pDiag(`track info: /tracks still pending after ${Date.now() - headerAt}ms, continuing`);
         const serviceAudio = (serviceTracks || []).filter(isAudioTrack);
         const serviceHasLanguages =
           serviceAudio.length > 0 && serviceAudio.every(hasKnownTrackLanguage);

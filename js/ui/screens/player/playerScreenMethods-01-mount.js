@@ -24,6 +24,7 @@ export function createPlayerScreenMethods01() {
     WebOsLunaService,
     TrackPreferencesStore,
     SubtitleDelayPreferencesStore,
+    TIZEN_AUDIO_GATE_MAX_WAIT_MS,
     WEBOS_REMOTE_MKV_AUDIO_GATE_MAX_WAIT_MS,
     claimEngineFsPlayback,
     AUDIO_AMPLIFICATION_MIN_DB,
@@ -240,7 +241,11 @@ export function createPlayerScreenMethods01() {
           this.engineFsPlaybackToken = "";
           this.enableStartupAudioGate({
             allowNativePlayback: allowNativePlaybackDuringStartupAudioGate,
-            maxWaitMs: prioritizeWebOsRemoteMkvPlayback ? WEBOS_REMOTE_MKV_AUDIO_GATE_MAX_WAIT_MS : 0
+            maxWaitMs: prioritizeWebOsRemoteMkvPlayback
+              ? WEBOS_REMOTE_MKV_AUDIO_GATE_MAX_WAIT_MS
+              : Environment.isTizen()
+                ? TIZEN_AUDIO_GATE_MAX_WAIT_MS
+                : 0
           });
         }
         if (!this.currentEngineFsStream) {

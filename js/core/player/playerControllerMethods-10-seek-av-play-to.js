@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 import * as internals from "./playerController.js";
 import { getAvPlayCallTrace } from "./engines/avplayCallTrace.js";
+import { p2pDiag } from "../diagnostics/p2pTestDiagnostics.js";
 
 export function createPlayerControllerMethods10() {
   const { AVPLAY_SEEK_TIMEOUT_MS, logTizenAvPlayDebug, Platform } = internals;
@@ -8,6 +9,7 @@ export function createPlayerControllerMethods10() {
   return {
     seekAvPlayTo(targetMs, { emitEvents = true } = {}) {
       if (!this.isUsingAvPlay() || this.avplaySeekInFlight) {
+        p2pDiag("seek skipped", { targetMs, usingAvPlay: this.isUsingAvPlay(), inFlight: Boolean(this.avplaySeekInFlight) });
         return false;
       }
 
@@ -30,6 +32,7 @@ export function createPlayerControllerMethods10() {
         // leaves the native player rejecting every later seek with
         // PLAYER_ERROR_INVALID_STATE. Defer it until the player is READY.
         this.avplayDeferredSeekMs = normalizedTargetMs;
+        p2pDiag("seek deferred until prepared", { targetMs: normalizedTargetMs, state: nativeState });
         logTizenAvPlayDebug("Tizen AVPlay seek deferred until prepared", {
           targetMs: normalizedTargetMs,
           state: nativeState
@@ -93,6 +96,12 @@ export function createPlayerControllerMethods10() {
           targetMs: normalizedTargetMs,
           elapsedMs: Math.max(0, this.avplaySeekSettledAt - seekStartedAt)
         };
+        p2pDiag("seek settled", {
+          success: Boolean(success),
+          targetMs: normalizedTargetMs,
+          elapsedMs: this.avplayLastSeekOutcome.elapsedMs,
+          state: this.getAvPlayState?.()
+        });
         this.refreshAvPlayTimeline();
         logTizenAvPlayDebug("Tizen AVPlay seek settled", {
           success: Boolean(success),
@@ -133,6 +142,7 @@ export function createPlayerControllerMethods10() {
         // play() was requested while this seek was in flight (startup resume):
         // start playback only now that Samsung has completed the seek.
         const pendingStart = this.avplayStartAfterSeek;
+        p2pDiag("seek settled", { success: Boolean(success), queuedStart: Boolean(pendingStart), seekInFlight: Boolean(this.avplaySeekInFlight) });
         if (pendingStart && !this.avplaySeekInFlight) {
           this.avplayStartAfterSeek = null;
           logTizenAvPlayDebug("Tizen AVPlay seek settled; starting delayed playback", {

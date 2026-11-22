@@ -1,4 +1,5 @@
 import * as internals from "./playerController.js";
+import { p2pDiag, stopP2pStatsSampler } from "../diagnostics/p2pTestDiagnostics.js";
 
 // getCurrentTime()/getDuration() are synchronous bridge calls; one UI tick reads
 // the position many times. Reuse a poll that is younger than this.
@@ -111,6 +112,7 @@ export function createPlayerControllerMethods03() {
     setStartupAudioGate(active, { resume = true, pauseNativePlayback = true } = {}) {
       const shouldGate = Boolean(active);
       const wasGated = Boolean(this.startupAudioGateActive);
+      if (shouldGate !== wasGated) p2pDiag(shouldGate ? "startup audio gate ON (waiting for track info)" : "startup audio gate released");
       const nativePlaybackWasPausedForGate = Boolean(this.startupAudioGatePausesNativePlayback);
       this.startupAudioGateActive = shouldGate;
       this.startupAudioGatePausesNativePlayback = shouldGate ? Boolean(pauseNativePlayback) : true;
@@ -132,9 +134,16 @@ export function createPlayerControllerMethods03() {
       }
 
       if (!resume || !wasGated) {
+        if (wasGated) p2pDiag("gate released without resume");
         return;
       }
       if (this.isUsingAvPlay()) {
+        p2pDiag("gate release -> player", {
+          ready: Boolean(this.avplayReady),
+          seekInFlight: Boolean(this.avplaySeekInFlight),
+          state: this.getAvPlayState?.(),
+          willStart: Boolean(this.avplayReady || this.avplaySeekInFlight)
+        });
         // A startup resume seek clears avplayReady while it is in flight;
         // startPreparedAvPlayPlayback() queues the start until it settles.
         if (this.avplayReady || this.avplaySeekInFlight) {
@@ -204,10 +213,17 @@ export function createPlayerControllerMethods03() {
     },
     startPreparedAvPlayPlayback({ syncTracks = true } = {}) {
       const avplay = this.getAvPlay();
+      p2pDiag("start playback requested", {
+        hasPlayer: Boolean(avplay),
+        usingAvPlay: Boolean(this.isUsingAvPlay()),
+        seekInFlight: Boolean(this.avplaySeekInFlight),
+        state: this.getAvPlayState?.()
+      });
       if (!avplay || !this.isUsingAvPlay()) {
         return false;
       }
       if (this.avplaySeekInFlight) {
+        p2pDiag("start playback queued until the resume seek settles");
         // Samsung forbids other AVPlay calls until seekTo() reports back.
         // Calling play() here (resume seek issued from the prepared events)
         // left the native player rejecting later seeks with INVALID_STATE.
@@ -218,6 +234,8 @@ export function createPlayerControllerMethods03() {
       this.selectPendingAvPlayAudioTrackBeforeStart(avplay);
       try {
         avplay.play?.();
+        p2pDiag("player play() called");
+        setTimeout(() => stopP2pStatsSampler("playback started 30s ago"), 30000);
         // AVPlay can report a startup error and still complete preparation. A
         // successful play call means that transient code must not remain fatal.
         this.lastPlaybackErrorCode = 0;

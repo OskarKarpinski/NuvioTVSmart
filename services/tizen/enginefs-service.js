@@ -216,6 +216,115 @@ function configureRuntimeEnv() {
   });
 }
 
+// Test build for #1388: records the HTTP requests the player makes to the
+// media server, so the app can log whether the player is reading and how much.
+function installRequestRecorder() {
+  var http = require("http");
+  if (http.__nuvioRequestRecorder) {
+    return;
+  }
+  http.__nuvioRequestRecorder = true;
+  var ring = [];
+  global.__NUVIO_REQUEST_LOG = ring;
+  var createServer = http.createServer;
+  http.createServer = function () {
+    var server = createServer.apply(http, arguments);
+    server.on("request", function (req, res) {
+      try {
+        if (req.socket && req.socket.localPort === 2712) {
+          return;
+        }
+        // The app's own stats polling would push the player's requests out of
+        // the ring.
+        if (String(req.url || "").indexOf("/stats.json") !== -1) {
+          return;
+        }
+        var entry = {
+          t: Date.now(),
+          m: req.method,
+          p: String(req.url || "")
+            .split("?")[0]
+            .slice(0, 50),
+          r: String(req.headers.range || ""),
+          b: 0,
+          s: 0,
+          d: 0,
+          ms: 0
+        };
+        ring.push(entry);
+        if (ring.length > 40) {
+          ring.shift();
+        }
+        var writeHead = res.writeHead;
+        res.writeHead = function (status) {
+          entry.s = status;
+          return writeHead.apply(res, arguments);
+        };
+        var write = res.write;
+        res.write = function (chunk) {
+          if (chunk && chunk.length) {
+            entry.b += chunk.length;
+          }
+          return write.apply(res, arguments);
+        };
+        var end = res.end;
+        res.end = function (chunk) {
+          if (chunk && chunk.length) {
+            entry.b += chunk.length;
+          }
+          entry.d = 1;
+          entry.ms = Date.now() - entry.t;
+          return end.apply(res, arguments);
+        };
+        res.on("close", function () {
+          entry.d = 1;
+          if (!entry.ms) {
+            entry.ms = Date.now() - entry.t;
+          }
+        });
+      } catch (_) {}
+    });
+    return server;
+  };
+}
+
+// Test build for #1388: port 2712 reports the Node version and how long the
+// service event loop was blocked, so the app can log it in Console debug.
+function startDiagnosticsPort() {
+  var http = require("http");
+  var windowMaxLag = 0;
+  var lastMaxLag = 0;
+  var expected = Date.now() + 250;
+  setInterval(function () {
+    var now = Date.now();
+    windowMaxLag = Math.max(windowMaxLag, now - expected);
+    expected = now + 250;
+  }, 250);
+  setInterval(function () {
+    lastMaxLag = windowMaxLag;
+    windowMaxLag = 0;
+  }, 5000);
+  http
+    .createServer(function (req, res) {
+      var mem = process.memoryUsage ? process.memoryUsage() : {};
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      });
+      res.end(
+        JSON.stringify({
+          node: process.version,
+          maxLagMs: Math.max(lastMaxLag, windowMaxLag),
+          rssMb: Math.round((mem.rss || 0) / 1048576),
+          uptimeS: Math.round(process.uptime ? process.uptime() : 0),
+          requests: (global.__NUVIO_REQUEST_LOG || []).slice(-12)
+        })
+      );
+    })
+    .on("error", function () {})
+    .listen(2712, "127.0.0.1");
+}
+
 function startEngineFsRuntime() {
   if (started) {
     diagnostic("start ignored", { reason: "runtime already requested" });
@@ -226,8 +335,12 @@ function startEngineFsRuntime() {
   configureRuntimeEnv();
   started = true;
   require("./runtime/node-runtime-compat.cjs")({ Buffer: Buffer, stream: require("stream") });
+  installRequestRecorder();
   loadTizenMediaRuntime();
   diagnostic("EngineFS runtime module loaded", { port: process.env.PORT });
+  try {
+    startDiagnosticsPort();
+  } catch (_) {}
   // AVPlay can expose text tracks without rendering them. Keep the fallback
   // extractors beside the existing runtime so Tizen 4+ devices with the
   // packaged web service can render supported timed text through the app HTML
