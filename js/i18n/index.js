@@ -629,6 +629,11 @@ async function loadLocaleMessages(locale) {
   }
 
   const promise = (async () => {
+    const inlined = globalThis.__NUVIO_I18N_BUNDLES__?.[locale];
+    if (inlined && typeof inlined === "object") {
+      return inlined;
+    }
+
     try {
       return await loadJsonFile(`i18n/${locale}.json`);
     } catch (_) {
