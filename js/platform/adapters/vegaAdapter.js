@@ -22,6 +22,8 @@ export function createVegaPlayerBridge() {
   let durationMs = 0;
   let pendingPrepare = null;
   let pendingSeek = null;
+  let seekingTargetMs = null;
+  let seekFallbackTimer = null;
 
   function post(action, data = {}) {
     postToVegaHost({ type: "NUVIO_VEGA_PLAYER", action, ...data });
@@ -34,6 +36,11 @@ export function createVegaPlayerBridge() {
       durationMs = 0;
       pendingPrepare = null;
       pendingSeek = null;
+      seekingTargetMs = null;
+      if (seekFallbackTimer) {
+        clearTimeout(seekFallbackTimer);
+        seekFallbackTimer = null;
+      }
       globalThis.document?.documentElement?.classList?.add("vega-native-player-active");
       globalThis.document?.body?.classList?.add("vega-native-player-active");
       post("open", { url });
@@ -66,8 +73,26 @@ export function createVegaPlayerBridge() {
     },
 
     seekTo(ms, onSuccess, onError) {
-      pendingSeek = { ms, onSuccess, onError };
-      post("seek", { positionMs: Math.max(0, Number(ms || 0)) });
+      if (seekFallbackTimer) {
+        clearTimeout(seekFallbackTimer);
+        seekFallbackTimer = null;
+      }
+      const targetMs = Math.max(0, Number(ms || 0));
+      currentTimeMs = targetMs;
+      seekingTargetMs = targetMs;
+      pendingSeek = { ms: targetMs, onSuccess, onError };
+      post("seek", { positionMs: targetMs });
+
+      // Fallback: if native seeked does not arrive in 500ms, resolve to keep UI unblocked
+      seekFallbackTimer = setTimeout(() => {
+        seekFallbackTimer = null;
+        seekingTargetMs = null;
+        if (pendingSeek) {
+          const cb = pendingSeek;
+          pendingSeek = null;
+          cb.onSuccess?.();
+        }
+      }, 500);
     },
 
     stop() {
@@ -77,6 +102,12 @@ export function createVegaPlayerBridge() {
 
     close() {
       state = "NONE";
+      if (seekFallbackTimer) {
+        clearTimeout(seekFallbackTimer);
+        seekFallbackTimer = null;
+      }
+      seekingTargetMs = null;
+      pendingSeek = null;
       globalThis.document?.documentElement?.classList?.remove("vega-native-player-active");
       globalThis.document?.body?.classList?.remove("vega-native-player-active");
       post("close");
@@ -117,8 +148,24 @@ export function createVegaPlayerBridge() {
       if (Number.isFinite(event.duration) && event.duration > 0) {
         durationMs = Math.round(event.duration * 1000);
       }
-      if (Number.isFinite(event.currentTime) && event.currentTime >= 0) {
-        currentTimeMs = Math.round(event.currentTime * 1000);
+      const incomingCurrentTimeMs =
+        Number.isFinite(event.currentTime) && event.currentTime >= 0
+          ? Math.round(event.currentTime * 1000)
+          : null;
+
+      if (incomingCurrentTimeMs != null) {
+        if (seekingTargetMs != null) {
+          // While seeking is in flight, reject stale timeupdates that belong to the pre-seek position.
+          if (name === "timeupdate" && Math.abs(incomingCurrentTimeMs - seekingTargetMs) > 2500) {
+            return;
+          }
+          if (name === "seeked" || Math.abs(incomingCurrentTimeMs - seekingTargetMs) <= 2500) {
+            currentTimeMs = incomingCurrentTimeMs;
+            seekingTargetMs = null;
+          }
+        } else {
+          currentTimeMs = incomingCurrentTimeMs;
+        }
       }
 
       switch (name) {
@@ -159,11 +206,17 @@ export function createVegaPlayerBridge() {
           break;
 
         case "seeked":
+          if (seekFallbackTimer) {
+            clearTimeout(seekFallbackTimer);
+            seekFallbackTimer = null;
+          }
+          seekingTargetMs = null;
           if (pendingSeek) {
             const cb = pendingSeek;
             pendingSeek = null;
             cb.onSuccess?.();
           }
+          currentListener?.oncurrentplaytime?.(currentTimeMs);
           break;
 
         case "ended":

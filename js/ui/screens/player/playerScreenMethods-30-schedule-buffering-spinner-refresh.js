@@ -298,6 +298,9 @@ export function createPlayerScreenMethods30() {
       }
       const requested = Number(this.pendingPlaybackRestore?.timeSeconds || 0);
       if (requested > 0 && current < requested - 0.75) return requested;
+      if (this.seekLoading && Number.isFinite(this.seekLoadingTargetSeconds) && !this.seekLoadingSettled) {
+        return this.seekLoadingTargetSeconds;
+      }
       return current;
     },
     getPlaybackDisplayDurationSeconds() {

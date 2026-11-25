@@ -254,7 +254,11 @@ export function createPlayerScreenMethods32() {
       if (!this.isSeekBarAvailable()) {
         return;
       }
-      const currentTime = this.getPlaybackCurrentSeconds();
+      const activeSeekTarget =
+        this.seekLoading && Number.isFinite(this.seekLoadingTargetSeconds) && !this.seekLoadingSettled
+          ? this.seekLoadingTargetSeconds
+          : null;
+      const currentTime = activeSeekTarget ?? this.getPlaybackCurrentSeconds();
       if (Number.isNaN(currentTime)) {
         return;
       }
@@ -313,7 +317,7 @@ export function createPlayerScreenMethods32() {
       // Keep the preview target instead of dropping a released-key command.
       if (this.seekPreviewSeconds != null && PlayerController.avplaySeekInFlight) {
         clearTimeout(this.seekCommitTimer);
-        this.seekCommitTimer = setTimeout(() => this.commitSeekPreview(), 100);
+        this.seekCommitTimer = setTimeout(() => this.commitSeekPreview(), 50);
         return;
       }
 
