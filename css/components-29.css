@@ -153,16 +153,25 @@
   background: transparent !important;
 }
 
+html.vega-native-player-active,
+html.vega-native-player-active body,
 body.vega-native-player-active,
 body.vega-native-player-active #app,
-body.vega-native-player-active #player {
+body.vega-native-player-active #player,
+body.vega-native-player-active .screen {
   background: transparent !important;
+  background-color: transparent !important;
 }
 
 body.vega-native-player-active #videoPlayer {
   background: transparent !important;
+  background-color: transparent !important;
   opacity: 0 !important;
   pointer-events: none !important;
+}
+
+.vega-tv #avPlayerObject {
+  display: none !important;
 }
 
 #playerUiRoot {

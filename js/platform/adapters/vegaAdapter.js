@@ -34,6 +34,7 @@ export function createVegaPlayerBridge() {
       durationMs = 0;
       pendingPrepare = null;
       pendingSeek = null;
+      globalThis.document?.documentElement?.classList?.add("vega-native-player-active");
       globalThis.document?.body?.classList?.add("vega-native-player-active");
       post("open", { url });
     },
@@ -76,6 +77,7 @@ export function createVegaPlayerBridge() {
 
     close() {
       state = "NONE";
+      globalThis.document?.documentElement?.classList?.remove("vega-native-player-active");
       globalThis.document?.body?.classList?.remove("vega-native-player-active");
       post("close");
     },
@@ -194,6 +196,8 @@ export const vegaAdapter = {
   name: "vega",
 
   init() {
+    globalThis.document?.documentElement?.classList?.add("vega-tv");
+    globalThis.document?.body?.classList?.add("vega-tv");
     if (!globalThis.__NUVIO_VEGA_PLAYER__) {
       globalThis.__NUVIO_VEGA_PLAYER__ = createVegaPlayerBridge();
     }
