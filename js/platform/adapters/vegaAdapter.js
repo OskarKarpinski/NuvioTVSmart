@@ -15,10 +15,173 @@ function postToVegaHost(payload) {
   return false;
 }
 
+export function createVegaPlayerBridge() {
+  let state = "NONE";
+  let currentListener = null;
+  let currentTimeMs = 0;
+  let durationMs = 0;
+  let pendingPrepare = null;
+  let pendingSeek = null;
+
+  function post(action, data = {}) {
+    postToVegaHost({ type: "NUVIO_VEGA_PLAYER", action, ...data });
+  }
+
+  return {
+    open(url) {
+      state = "IDLE";
+      currentTimeMs = 0;
+      durationMs = 0;
+      globalThis.document?.body?.classList?.add("vega-native-player-active");
+      post("open", { url });
+    },
+
+    setListener(listener) {
+      currentListener = listener || null;
+    },
+
+    prepareAsync(onSuccess, onError) {
+      pendingPrepare = { onSuccess, onError };
+      post("prepare");
+    },
+
+    play() {
+      state = "PLAYING";
+      post("play");
+    },
+
+    pause() {
+      state = "PAUSED";
+      post("pause");
+    },
+
+    seekTo(ms, onSuccess, onError) {
+      pendingSeek = { ms, onSuccess, onError };
+      post("seek", { positionMs: Math.max(0, Number(ms || 0)) });
+    },
+
+    stop() {
+      state = "IDLE";
+      post("stop");
+    },
+
+    close() {
+      state = "NONE";
+      globalThis.document?.body?.classList?.remove("vega-native-player-active");
+      post("close");
+    },
+
+    getState() {
+      return state;
+    },
+
+    getCurrentTime() {
+      return currentTimeMs;
+    },
+
+    getDuration() {
+      return durationMs;
+    },
+
+    setDisplayRect() {},
+    setDisplayMethod() {},
+    setStreamingProperty() {},
+    setBufferingParam() {},
+    setTimeoutForBuffering() {},
+    setSelectTrack() {},
+    setSilentSubtitle() {},
+    setSpeed(speed) {
+      post("rate", { rate: Number(speed || 1) });
+    },
+    getTotalTrackInfo() {
+      return [];
+    },
+    getCurrentStreamInfo() {
+      return [];
+    },
+
+    _handleNativeEvent(event) {
+      if (!event) return;
+      const name = String(event.name || "");
+      if (Number.isFinite(event.duration) && event.duration > 0) {
+        durationMs = Math.round(event.duration * 1000);
+      }
+      if (Number.isFinite(event.currentTime) && event.currentTime >= 0) {
+        currentTimeMs = Math.round(event.currentTime * 1000);
+      }
+
+      switch (name) {
+        case "canplay":
+        case "loadedmetadata":
+        case "loadeddata":
+          if (state === "IDLE") {
+            state = "READY";
+          }
+          if (pendingPrepare) {
+            const cb = pendingPrepare;
+            pendingPrepare = null;
+            cb.onSuccess?.();
+          }
+          currentListener?.onbufferingcomplete?.();
+          break;
+
+        case "timeupdate":
+          currentListener?.oncurrentplaytime?.(currentTimeMs);
+          break;
+
+        case "playing":
+          state = "PLAYING";
+          currentListener?.onbufferingcomplete?.();
+          break;
+
+        case "pause":
+          state = "PAUSED";
+          break;
+
+        case "waiting":
+        case "stalled":
+          currentListener?.onbufferingstart?.();
+          break;
+
+        case "progress":
+          currentListener?.onbufferingprogress?.(event.percent ?? 50);
+          break;
+
+        case "seeked":
+          if (pendingSeek) {
+            const cb = pendingSeek;
+            pendingSeek = null;
+            cb.onSuccess?.();
+          }
+          break;
+
+        case "ended":
+          state = "IDLE";
+          currentListener?.onstreamcompleted?.();
+          break;
+
+        case "error":
+          state = "NONE";
+          if (pendingPrepare) {
+            const cb = pendingPrepare;
+            pendingPrepare = null;
+            cb.onError?.(event.error);
+          }
+          currentListener?.onerror?.(event.error || "VEGA_PLAYER_ERROR");
+          break;
+      }
+    }
+  };
+}
+
 export const vegaAdapter = {
   name: "vega",
 
-  init() {},
+  init() {
+    if (!globalThis.__NUVIO_VEGA_PLAYER__) {
+      globalThis.__NUVIO_VEGA_PLAYER__ = createVegaPlayerBridge();
+    }
+  },
 
   exitApp() {
     if (postToVegaHost({ type: "NUVIO_EXIT_APP" })) {
@@ -50,7 +213,8 @@ export const vegaAdapter = {
       dashJs: Boolean(globalThis.dashjs?.MediaPlayer),
       nativeVideo: true,
       webosAvplay: false,
-      tizenAvplay: false
+      tizenAvplay: false,
+      vegaAvplay: true
     };
   },
 

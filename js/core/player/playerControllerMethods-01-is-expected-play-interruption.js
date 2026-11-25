@@ -215,7 +215,7 @@ export function createPlayerControllerMethods01() {
       return this.getPlatformAvplayEngine().name;
     },
     shouldPreferTvNativePipeline() {
-      return Platform.isTizen() || Platform.isWebOS();
+      return Boolean(Platform.isTizen?.() || Platform.isWebOS?.() || Platform.isVega?.());
     },
     getAvPlay() {
       return this.getPlatformAvplayEngine().getApi();

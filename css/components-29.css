@@ -153,6 +153,18 @@
   background: transparent !important;
 }
 
+body.vega-native-player-active,
+body.vega-native-player-active #app,
+body.vega-native-player-active #player {
+  background: transparent !important;
+}
+
+body.vega-native-player-active #videoPlayer {
+  background: transparent !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 #playerUiRoot {
   --player-secondary: var(--secondary-color);
   --player-on-secondary: var(--on-secondary);

@@ -11,6 +11,70 @@ test("vegaAdapter reports Vega OS metadata and capabilities", () => {
   assert.equal(caps.nativeVideo, true);
   assert.equal(caps.webosAvplay, false);
   assert.equal(caps.tizenAvplay, false);
+  assert.equal(caps.vegaAvplay, true);
+});
+
+test("createVegaPlayerBridge drives native player lifecycle and callbacks", () => {
+  const previousBridge = globalThis.ReactNativeWebView;
+  const messages = [];
+  globalThis.ReactNativeWebView = {
+    postMessage(msg) {
+      messages.push(JSON.parse(msg));
+    }
+  };
+
+  try {
+    const bridge = vegaAdapter.init() || globalThis.__NUVIO_VEGA_PLAYER__;
+    assert.ok(bridge);
+
+    let preparedFired = false;
+    let timeUpdates = [];
+    bridge.setListener({
+      oncurrentplaytime(ms) {
+        timeUpdates.push(ms);
+      }
+    });
+
+    bridge.open("https://example.com/test.mkv");
+    assert.equal(bridge.getState(), "IDLE");
+    assert.deepEqual(messages[0], { type: "NUVIO_VEGA_PLAYER", action: "open", url: "https://example.com/test.mkv" });
+
+    bridge.prepareAsync(
+      () => { preparedFired = true; },
+      () => {}
+    );
+    assert.deepEqual(messages[1], { type: "NUVIO_VEGA_PLAYER", action: "prepare" });
+
+    bridge._handleNativeEvent({ name: "canplay", duration: 120.5 });
+    assert.equal(preparedFired, true);
+    assert.equal(bridge.getState(), "READY");
+    assert.equal(bridge.getDuration(), 120500);
+
+    bridge.play();
+    assert.equal(bridge.getState(), "PLAYING");
+    assert.deepEqual(messages[2], { type: "NUVIO_VEGA_PLAYER", action: "play" });
+
+    bridge._handleNativeEvent({ name: "timeupdate", currentTime: 10.25 });
+    assert.equal(bridge.getCurrentTime(), 10250);
+    assert.deepEqual(timeUpdates, [10250]);
+
+    bridge.pause();
+    assert.equal(bridge.getState(), "PAUSED");
+    assert.deepEqual(messages[3], { type: "NUVIO_VEGA_PLAYER", action: "pause" });
+
+    bridge.seekTo(30000);
+    assert.deepEqual(messages[4], { type: "NUVIO_VEGA_PLAYER", action: "seek", positionMs: 30000 });
+
+    bridge.stop();
+    assert.equal(bridge.getState(), "IDLE");
+    assert.deepEqual(messages[5], { type: "NUVIO_VEGA_PLAYER", action: "stop" });
+
+    bridge.close();
+    assert.equal(bridge.getState(), "NONE");
+    assert.deepEqual(messages[6], { type: "NUVIO_VEGA_PLAYER", action: "close" });
+  } finally {
+    globalThis.ReactNativeWebView = previousBridge;
+  }
 });
 
 test("vegaAdapter recognizes Fire TV back and navigation keys", () => {

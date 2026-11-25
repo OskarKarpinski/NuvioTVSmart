@@ -33,6 +33,17 @@ function createEngine(name) {
 }
 
 export const tizenAvplayEngine = createEngine("tizen-avplay");
+export const vegaAvplayEngine = {
+  name: "vega-avplay",
+
+  isSupported() {
+    return Boolean(globalThis.ReactNativeWebView || globalThis.__NUVIO_VEGA_PLAYER__);
+  },
+
+  getApi() {
+    return globalThis.__NUVIO_VEGA_PLAYER__ || null;
+  }
+};
 export const disabledAvplayEngine = {
   name: "none",
 
@@ -48,6 +59,9 @@ export const disabledAvplayEngine = {
 export function resolvePlatformAvplayEngine(platformName) {
   if (platformName === "tizen") {
     return tizenAvplayEngine;
+  }
+  if (platformName === "vega") {
+    return vegaAvplayEngine;
   }
   return disabledAvplayEngine;
 }

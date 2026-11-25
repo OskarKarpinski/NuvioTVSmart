@@ -8,7 +8,8 @@ export function createPlayerControllerMethods12() {
     getPlaybackEngineCandidates(url, sourceType = null, itemType = this.currentItemType) {
       const normalizedSourceType = String(sourceType || this.guessMediaMimeType(url) || "").trim();
       const avplayEngine = this.getPlatformAvplayEngineName();
-      const isTizenRuntime = Platform.isTizen();
+      const isTizenRuntime = Boolean(typeof Platform.isTizen === "function" && Platform.isTizen());
+      const isVegaRuntime = Boolean(typeof Platform.isVega === "function" && Platform.isVega());
       const isLivePlayback = this.isLivePlaybackItemType(itemType);
       const canUseAvPlay = this.canUseAvPlay();
       const preferTvNative = this.shouldPreferTvNativePipeline();
@@ -33,7 +34,7 @@ export function createPlayerControllerMethods12() {
           // on affected Samsung TVs. AVPlay and native HLS remain fallbacks.
           pushCandidate(candidates, "hls.js");
         }
-        if (isTizenRuntime && canUseAvPlay) {
+        if ((isTizenRuntime || isVegaRuntime) && canUseAvPlay) {
           pushCandidate(candidates, avplayEngine);
         }
         if (preferTvNative && canUseAvPlay) {
@@ -45,7 +46,7 @@ export function createPlayerControllerMethods12() {
           // MSE support was confirmed.
           pushCandidate(candidates, "hls.js");
         }
-        if (!isTizenRuntime) {
+        if (!isTizenRuntime && !isVegaRuntime) {
           // Android opens HLS through HlsMediaSource, which reports manifest
           // failures directly. Prefer the equivalent hls.js pipeline here; if
           // MSE is unavailable, playWithHlsJs falls back to native playback.
@@ -68,7 +69,7 @@ export function createPlayerControllerMethods12() {
 
       if (this.isLikelyDashMimeType(normalizedSourceType)) {
         const candidates = [];
-        if (isTizenRuntime && canUseAvPlay) {
+        if ((isTizenRuntime || isVegaRuntime) && canUseAvPlay) {
           pushCandidate(candidates, avplayEngine);
         }
         if (preferTvNative && canUseAvPlay) {
@@ -83,7 +84,7 @@ export function createPlayerControllerMethods12() {
         if (isTizenRuntime && !isLivePlayback) {
           pushCandidate(candidates, "dash.js");
         }
-        if (!isTizenRuntime && canUseDashJs) {
+        if (!isTizenRuntime && !isVegaRuntime && canUseDashJs) {
           pushCandidate(candidates, "dash.js");
         }
         if (canUseAvPlay) {
@@ -94,7 +95,7 @@ export function createPlayerControllerMethods12() {
 
       if (this.isLikelySmoothStreamingMimeType(normalizedSourceType)) {
         const candidates = [];
-        if (isTizenRuntime && canUseAvPlay) {
+        if ((isTizenRuntime || isVegaRuntime) && canUseAvPlay) {
           pushCandidate(candidates, avplayEngine);
         }
         if (canPlayNativeSmooth) {
@@ -108,19 +109,19 @@ export function createPlayerControllerMethods12() {
 
       const candidates = [];
       const isRemoteDirectHttpSource = this.isRemoteDirectHttpSource(url);
-      if (isTizenRuntime && canUseAvPlay) {
+      if ((isTizenRuntime || isVegaRuntime) && canUseAvPlay) {
         pushCandidate(candidates, avplayEngine);
       }
       // Android keeps progressive network playback in a native Media3/OkHttp
-      // pipeline. On Tizen, retrying a remote AVPlay failure with the browser
-      // video element creates a second, misleading CORS/Same-Origin failure.
-      // Keep the HTML fallback for local EngineFS URLs and non-Tizen platforms;
+      // pipeline. On Tizen and Vega, retrying a remote AVPlay failure with the browser
+      // video element creates a second, misleading CORS/Same-Origin failure (or source not supported).
+      // Keep the HTML fallback for local EngineFS URLs and non-Tizen/Vega platforms;
       // if AVPlay is unavailable, choosePlaybackEngine() keeps the remote source
       // on the AVPlay path and reports a controlled platform error.
-      if (!isTizenRuntime || !isRemoteDirectHttpSource) {
+      if ((!isTizenRuntime && !isVegaRuntime) || !isRemoteDirectHttpSource) {
         pushCandidate(candidates, "native-file");
       }
-      if (!isTizenRuntime && canUseAvPlay) {
+      if (!isTizenRuntime && !isVegaRuntime && canUseAvPlay) {
         pushCandidate(candidates, avplayEngine);
       }
       return candidates;

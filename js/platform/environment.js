@@ -13,6 +13,10 @@ export const Environment = {
     return Platform.isBrowser();
   },
 
+  isVega() {
+    return Platform.isVega();
+  },
+
   isBackEvent(event) {
     return Platform.isBackEvent(event);
   },
