@@ -296,7 +296,11 @@ export function createPlayerScreenMethods53() {
       if (this.refreshSubtitleCueStyles()) {
         this.refreshWebOsEmbeddedSubtitleAfterCueMutation();
       }
-      if (embeddedTrack && !embeddedTrack.bitmapSubtitle && (Environment.isWebOS() || useTizenEmbeddedTextHtmlFallback)) {
+      if (
+        embeddedTrack &&
+        !embeddedTrack.bitmapSubtitle &&
+        (Environment.isWebOS() || useTizenEmbeddedTextHtmlFallback || Environment.isVega?.())
+      ) {
         this.webOsEmbeddedTextSubtitleTrack = embeddedTrack;
         this.webOsEmbeddedTextSubtitleUsingHtml = false;
         void this.loadWebOsEmbeddedTextSubtitleWindow(this.getPlaybackCurrentSeconds());

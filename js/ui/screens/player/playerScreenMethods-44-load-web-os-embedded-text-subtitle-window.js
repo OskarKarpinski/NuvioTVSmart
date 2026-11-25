@@ -64,7 +64,7 @@ export function createPlayerScreenMethods44() {
         ? Number.isFinite(sourceTrackOrdinal) && sourceTrackOrdinal >= 0
         : Number.isFinite(sourceTrackId) && sourceTrackId > 0;
       if (
-        (!Environment.isWebOS() && !isTizenEmbeddedTextSubtitleFallbackTrack(track)) ||
+        (!Environment.isWebOS() && !isTizenEmbeddedTextSubtitleFallbackTrack(track) && !Environment.isVega?.()) ||
         !track ||
         !sourceUrl ||
         !hasValidTrackSelector ||

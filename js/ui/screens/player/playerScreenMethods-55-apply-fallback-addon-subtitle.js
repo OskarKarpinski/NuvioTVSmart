@@ -34,7 +34,7 @@ export function createPlayerScreenMethods55() {
       }
 
       const usingAvPlay = typeof PlayerController.isUsingAvPlay === "function" ? PlayerController.isUsingAvPlay() : false;
-      if ((usingAvPlay && Environment.isTizen()) || Environment.isWebOS()) {
+      if ((usingAvPlay && (Environment.isTizen() || Environment.isVega?.())) || Environment.isWebOS() || Environment.isVega?.()) {
         try {
           if (await this.applyTvHtmlAddonSubtitle(subtitle, subtitleIndex, selectionToken)) {
             this.maybeRunAutomaticSubtitleSync(subtitle, {

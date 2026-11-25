@@ -161,6 +161,10 @@ body.vega-native-player-active #player,
 body.vega-native-player-active .screen {
   background: transparent !important;
   background-color: transparent !important;
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
 }
 
 body.vega-native-player-active #videoPlayer {
@@ -168,6 +172,18 @@ body.vega-native-player-active #videoPlayer {
   background-color: transparent !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  border: none !important;
+  outline: none !important;
+}
+
+.vega-tv html,
+.vega-tv body,
+.vega-tv #app,
+.vega-tv .screen,
+.vega-tv #player {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .vega-tv #avPlayerObject {

@@ -200,12 +200,13 @@
   color: #000000;
 }
 
-.player-control-btn.is-primary .player-control-icon:not(.player-control-icon-mask) {
+.player-control-btn.is-primary:not(.focused) .player-control-icon:not(.player-control-icon-mask) {
   filter: brightness(0) invert(1);
 }
 
-.player-control-btn.focused .player-control-icon {
-  filter: none;
+.player-control-btn.focused .player-control-icon,
+.player-control-btn.is-primary.focused .player-control-icon {
+  filter: brightness(0) !important;
 }
 
 .player-control-btn.focused .player-control-icon-mask {

@@ -174,7 +174,11 @@ export function createPlayerScreenMethods46() {
       // ASS branch: fetch the raw body and render through ass.js when
       // detected. Native AVPlay subtitle handling cannot consume ASS text,
       // so the HTML overlay (or ass.js overlay) is the only presentation.
-      if (Environment.isWebOS() || (Environment.isTizen() && PlayerController.isUsingAvPlay?.())) {
+      if (
+        Environment.isWebOS() ||
+        ((Environment.isTizen() || Environment.isVega?.()) && PlayerController.isUsingAvPlay?.()) ||
+        Environment.isVega?.()
+      ) {
         let raw = null;
         try {
           raw = await this.fetchSubtitleRawBody(sourceUrl, {

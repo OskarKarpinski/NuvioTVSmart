@@ -4,7 +4,7 @@ import * as internals from "./playerScreenContext.js";
 import { PartyRepository } from "../../../core/party/partyRepository.js";
 
 export function createPlayerScreenMethods28() {
-  const { PlayerController, t, clamp, escapeHtml } = internals;
+  const { PlayerController, Environment, t, clamp, escapeHtml } = internals;
 
   return {
     unbindVideoEvents() {
@@ -175,7 +175,7 @@ export function createPlayerScreenMethods28() {
                     title="${escapeHtml(control.title || "")}">
               ${
                 control.icon
-                  ? control.primary || control.useMask
+                  ? (control.primary || control.useMask) && !Environment.isVega?.()
                     ? `<span class="player-control-icon player-control-icon-mask" style="-webkit-mask-image:url('${escapeHtml(control.icon)}');mask-image:url('${escapeHtml(control.icon)}');" aria-hidden="true"></span>`
                     : `<img class="player-control-icon" src="${control.icon}" alt="" aria-hidden="true" />`
                   : `<span class="player-control-label">${escapeHtml(control.label || "")}</span>`
