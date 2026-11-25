@@ -37,10 +37,16 @@ test("createVegaPlayerBridge drives native player lifecycle and callbacks", () =
 
     bridge.open("https://example.com/test.mkv");
     assert.equal(bridge.getState(), "IDLE");
-    assert.deepEqual(messages[0], { type: "NUVIO_VEGA_PLAYER", action: "open", url: "https://example.com/test.mkv" });
+    assert.deepEqual(messages[0], {
+      type: "NUVIO_VEGA_PLAYER",
+      action: "open",
+      url: "https://example.com/test.mkv"
+    });
 
     bridge.prepareAsync(
-      () => { preparedFired = true; },
+      () => {
+        preparedFired = true;
+      },
       () => {}
     );
     assert.deepEqual(messages[1], { type: "NUVIO_VEGA_PLAYER", action: "prepare" });

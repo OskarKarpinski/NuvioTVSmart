@@ -32,6 +32,8 @@ export function createVegaPlayerBridge() {
       state = "IDLE";
       currentTimeMs = 0;
       durationMs = 0;
+      pendingPrepare = null;
+      pendingSeek = null;
       globalThis.document?.body?.classList?.add("vega-native-player-active");
       post("open", { url });
     },
@@ -41,6 +43,13 @@ export function createVegaPlayerBridge() {
     },
 
     prepareAsync(onSuccess, onError) {
+      if (state === "READY") {
+        setTimeout(() => {
+          onSuccess?.();
+          currentListener?.onbufferingcomplete?.();
+        }, 0);
+        return;
+      }
       pendingPrepare = { onSuccess, onError };
       post("prepare");
     },
@@ -160,15 +169,22 @@ export function createVegaPlayerBridge() {
           currentListener?.onstreamcompleted?.();
           break;
 
-        case "error":
+        case "error": {
           state = "NONE";
+          const errText =
+            typeof event.error === "string" && event.error
+              ? event.error
+              : typeof event.error?.message === "string"
+                ? event.error.message
+                : "Native playback error";
           if (pendingPrepare) {
             const cb = pendingPrepare;
             pendingPrepare = null;
-            cb.onError?.(event.error);
+            cb.onError?.(errText);
           }
-          currentListener?.onerror?.(event.error || "VEGA_PLAYER_ERROR");
+          currentListener?.onerror?.(errText);
           break;
+        }
       }
     }
   };
