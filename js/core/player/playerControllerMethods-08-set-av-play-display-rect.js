@@ -202,6 +202,13 @@ export function createPlayerControllerMethods08() {
       } catch (_) {
         // Ignore unsupported AVPlay header properties.
       }
+      if (typeof avplay.setRequestHeaders === "function") {
+        try {
+          avplay.setRequestHeaders(headers);
+        } catch (_) {
+          // Ignore unsupported setRequestHeaders.
+        }
+      }
     },
     configureAvPlayBuffering() {
       const avplay = this.getAvPlay();

@@ -26,6 +26,7 @@ export function createVegaPlayerBridge() {
   let seekFallbackTimer = null;
   let nativeAudioTracks = [];
   let nativeTextTracks = [];
+  let streamingProperties = {};
 
   function post(action, data = {}) {
     postToVegaHost({ type: "NUVIO_VEGA_PLAYER", action, ...data });
@@ -47,7 +48,7 @@ export function createVegaPlayerBridge() {
       }
       globalThis.document?.documentElement?.classList?.add("vega-native-player-active");
       globalThis.document?.body?.classList?.add("vega-native-player-active");
-      post("open", { url });
+      post("open", { url, headers: { ...streamingProperties } });
     },
 
     setListener(listener) {
@@ -63,7 +64,7 @@ export function createVegaPlayerBridge() {
         return;
       }
       pendingPrepare = { onSuccess, onError };
-      post("prepare");
+      post("prepare", { headers: { ...streamingProperties } });
     },
 
     play() {
@@ -114,6 +115,7 @@ export function createVegaPlayerBridge() {
       pendingSeek = null;
       nativeAudioTracks = [];
       nativeTextTracks = [];
+      streamingProperties = {};
       globalThis.document?.documentElement?.classList?.remove("vega-native-player-active");
       globalThis.document?.body?.classList?.remove("vega-native-player-active");
       post("close");
@@ -133,7 +135,24 @@ export function createVegaPlayerBridge() {
 
     setDisplayRect() {},
     setDisplayMethod() {},
-    setStreamingProperty() {},
+    setStreamingProperty(prop, value) {
+      if (prop && value != null) {
+        const key = String(prop).trim();
+        streamingProperties[key] = String(value);
+        if (key.toUpperCase() === "COOKIE") {
+          streamingProperties["Cookie"] = String(value);
+        } else if (key.toUpperCase() === "USER_AGENT") {
+          streamingProperties["User-Agent"] = String(value);
+        }
+        post("setHeaders", { headers: { ...streamingProperties } });
+      }
+    },
+    setRequestHeaders(headers) {
+      if (headers && typeof headers === "object") {
+        Object.assign(streamingProperties, headers);
+        post("setHeaders", { headers: { ...streamingProperties } });
+      }
+    },
     setBufferingParam() {},
     setTimeoutForBuffering() {},
     setSelectTrack(type, index) {

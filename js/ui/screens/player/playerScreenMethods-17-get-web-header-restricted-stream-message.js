@@ -1,3 +1,4 @@
+import { diagnosePlaybackFailure } from "./playbackFailureDiagnostic.js";
 /* eslint-disable no-unused-vars */
 import * as internals from "./playerScreenContext.js";
 
@@ -88,7 +89,11 @@ export function createPlayerScreenMethods17() {
       const activeUrl =
         playbackUrl || this.activePlaybackUrl || candidate?.url || candidate?.externalUrl || raw?.url || raw?.externalUrl || "";
 
-      pushPlaybackDiagnosticLine(lines, "Platform", Environment.isWebOS() ? "webOS" : Environment.isTizen() ? "Tizen" : "browser");
+      pushPlaybackDiagnosticLine(
+        lines,
+        "Platform",
+        Environment.isVega?.() ? "Vega OS (Fire TV)" : Environment.isWebOS() ? "webOS" : Environment.isTizen() ? "Tizen" : "browser"
+      );
       pushPlaybackDiagnosticLine(lines, "Reason", reason);
       pushPlaybackDiagnosticLine(lines, "Media code", this.getPlaybackErrorCodeLabel(mediaErrorCode));
       pushPlaybackDiagnosticLine(lines, "HTTP status", httpStatus);
@@ -192,6 +197,20 @@ export function createPlayerScreenMethods17() {
       }
       this.startupErrorMessage = String(message || "").trim() || t("player_error_playback_fallback", {}, "Playback error");
       this.startupErrorMediaCode = Number(mediaErrorCode || 0);
+      const httpStatus = extractPlaybackHttpStatus(
+        [detail, error?.message, error?.name, error?.errorText, error?.status].filter(Boolean).join(" ")
+      );
+      this.playbackDiagnostic = diagnosePlaybackFailure({
+        mediaErrorCode,
+        httpStatus,
+        reason,
+        runtimeDetail: detail || error?.message,
+        avplayError: eventDetail?.avplayError,
+        candidate:
+          streamCandidate || this.getStreamCandidateByUrl(playbackUrl || this.activePlaybackUrl) || this.getCurrentStreamCandidate(),
+        playbackUrl: playbackUrl || this.activePlaybackUrl,
+        platform: Environment.isVega?.() ? "vega" : Environment.isWebOS?.() ? "webos" : Environment.isTizen?.() ? "tizen" : "browser"
+      });
       this.startupErrorDetails = Array.isArray(details)
         ? details.map((line) => cleanPlaybackDiagnosticValue(line)).filter(Boolean)
         : this.getPlaybackErrorDetailLines({

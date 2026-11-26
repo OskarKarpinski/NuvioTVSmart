@@ -186,6 +186,7 @@ export function createPlayerScreenMethods16() {
       this.startupErrorMessage = "";
       this.startupErrorMediaCode = 0;
       this.startupErrorDetails = [];
+      this.playbackDiagnostic = null;
       this.renderStartupErrorOverlay();
     },
     getPlaybackErrorCodeLabel(mediaErrorCode = 0) {
