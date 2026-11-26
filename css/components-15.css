@@ -154,12 +154,17 @@
 }
 
 @keyframes homeContinueLoadingShimmer {
-  0%,
-  100% {
-    opacity: 0.5;
+  0% {
+    opacity: 0.45;
+    filter: brightness(0.9);
   }
   50% {
-    opacity: 0.92;
+    opacity: 0.95;
+    filter: brightness(1.25);
+  }
+  100% {
+    opacity: 0.45;
+    filter: brightness(0.9);
   }
 }
 

@@ -525,3 +525,28 @@ html[data-card-depth="true"][data-card-depth-trailers="true"]
 .home-classic-focus-gradient .home-screen-main {
   background: linear-gradient(90deg, transparent 52%, rgba(255, 255, 255, 0.045) 100%);
 }
+
+/* Vega OS GPU Optimization: avoid costly real-time blur passes on ARMv7 Mali GPU */
+.vega-tv .modern-sidebar-shell .modern-sidebar-panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: linear-gradient(180deg, rgba(20, 20, 26, 0.96), rgba(12, 12, 16, 0.98)) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
+}
+
+/* Enhanced tactile focus feedback for TV remote navigation */
+.home-screen-shell.home-layout-classic .home-poster-card.focused,
+.home-screen-shell.home-layout-grid .home-poster-card.focused {
+  transform: translateZ(0) scale(1.035) !important;
+  z-index: 4;
+}
+
+.home-screen-shell .home-continue-card.focused {
+  transform: translateZ(0) scale(1.03) !important;
+  z-index: 4;
+}
+
+.home-screen-shell .series-episode-card.focused {
+  transform: translateZ(0) scale(1.03) !important;
+  z-index: 4;
+}

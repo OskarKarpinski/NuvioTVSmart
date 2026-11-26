@@ -88,6 +88,7 @@
 .player-progress-shell.focused .player-progress-track {
   height: 10px;
   background: rgba(255, 255, 255, 0.45);
+  overflow: visible;
 }
 
 .player-progress-buffered,
@@ -118,6 +119,27 @@
   z-index: 2;
   background: var(--player-accent-gradient, var(--player-secondary));
   transition: width 150ms linear;
+}
+
+.player-progress-fill::after {
+  content: "";
+  position: absolute;
+  right: -7px;
+  top: 50%;
+  transform: translateY(-50%) scale(0);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow:
+    0 0 10px rgba(255, 255, 255, 0.8),
+    0 0 4px rgba(0, 0, 0, 0.6);
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+}
+
+.player-progress-shell.focused .player-progress-fill::after {
+  transform: translateY(-50%) scale(1);
 }
 
 .player-controls-row {

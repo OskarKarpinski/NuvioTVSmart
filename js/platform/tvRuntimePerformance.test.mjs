@@ -70,9 +70,38 @@ test("the forced full tier drops the generation rule but not the measurement", (
     measured: "constrained"
   })();
   assert.equal(measuredBack.isPerformanceConstrained, true);
-  assert.equal(
-    loadProfile({ tizenVersion: "9.0", chromium: 120, forced: "constrained" })()
-      .isPerformanceConstrained,
-    true
-  );
+});
+
+test("Vega OS runtime is recognized as TV and respects memory constraints", () => {
+  const profileGetter = (memory, chromium = 110) => {
+    const source = readFileSync(new URL("./tvRuntimePerformance.js", import.meta.url), "utf8")
+      .replace(/^import[\s\S]*?;\r?\n/gm, "")
+      .replace(/^export /gm, "");
+    return vm
+      .runInNewContext(`${source}\n;({ getTvRuntimePerformanceProfile })`, {
+        Platform: {
+          isWebOS: () => false,
+          isTizen: () => false,
+          isVega: () => true,
+          getName: () => "vega"
+        },
+        TizenCapabilities: { get: () => ({ tizenVersion: "", chromiumMajorVersion: chromium }) },
+        navigator: { userAgent: `Mozilla/5.0 Chrome/${chromium}.0.0.0 Safari/537.36` },
+        isLowMemoryDevice,
+        readMeasuredTvTier: () => null,
+        readForcedTvTier: () => null,
+        getDeviceMemoryGb: () => memory
+      })
+      .getTvRuntimePerformanceProfile();
+  };
+
+  const vegaProfile1Gb = profileGetter(1);
+  assert.equal(vegaProfile1Gb.isTvRuntime, true);
+  assert.equal(vegaProfile1Gb.platform, "vega");
+  assert.equal(vegaProfile1Gb.isPerformanceConstrained, true);
+
+  const vegaProfile2Gb = profileGetter(2);
+  assert.equal(vegaProfile2Gb.isTvRuntime, true);
+  assert.equal(vegaProfile2Gb.platform, "vega");
+  assert.equal(vegaProfile2Gb.isPerformanceConstrained, false);
 });

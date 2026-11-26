@@ -78,6 +78,33 @@ test("createVegaPlayerBridge drives native player lifecycle and callbacks", () =
     bridge.close();
     assert.equal(bridge.getState(), "NONE");
     assert.deepEqual(messages[6], { type: "NUVIO_VEGA_PLAYER", action: "close" });
+
+    // Test audio tracks handling
+    bridge.open("https://example.com/stream.mp4");
+    bridge._handleNativeEvent({
+      name: "loadedmetadata",
+      audioTracks: [
+        { index: 0, label: "English", language: "eng", enabled: true },
+        { index: 1, label: "Polish", language: "pol", enabled: false }
+      ]
+    });
+    const totalTracks = bridge.getTotalTrackInfo();
+    assert.equal(totalTracks.length, 2);
+    assert.equal(totalTracks[0].name, "English");
+    assert.equal(totalTracks[1].extra_info.track_lang, "pol");
+
+    const currentStream = bridge.getCurrentStreamInfo();
+    assert.equal(currentStream.length, 1);
+    assert.equal(currentStream[0].index, 0);
+
+    bridge.setSelectTrack("AUDIO", 1);
+    assert.deepEqual(messages[messages.length - 1], {
+      type: "NUVIO_VEGA_PLAYER",
+      action: "selectAudioTrack",
+      index: 1
+    });
+    const updatedStream = bridge.getCurrentStreamInfo();
+    assert.equal(updatedStream[0].index, 1);
   } finally {
     globalThis.ReactNativeWebView = previousBridge;
   }

@@ -24,6 +24,7 @@ export function createVegaPlayerBridge() {
   let pendingSeek = null;
   let seekingTargetMs = null;
   let seekFallbackTimer = null;
+  let nativeAudioTracks = [];
 
   function post(action, data = {}) {
     postToVegaHost({ type: "NUVIO_VEGA_PLAYER", action, ...data });
@@ -37,6 +38,7 @@ export function createVegaPlayerBridge() {
       pendingPrepare = null;
       pendingSeek = null;
       seekingTargetMs = null;
+      nativeAudioTracks = [];
       if (seekFallbackTimer) {
         clearTimeout(seekFallbackTimer);
         seekFallbackTimer = null;
@@ -108,6 +110,7 @@ export function createVegaPlayerBridge() {
       }
       seekingTargetMs = null;
       pendingSeek = null;
+      nativeAudioTracks = [];
       globalThis.document?.documentElement?.classList?.remove("vega-native-player-active");
       globalThis.document?.body?.classList?.remove("vega-native-player-active");
       post("close");
@@ -130,16 +133,44 @@ export function createVegaPlayerBridge() {
     setStreamingProperty() {},
     setBufferingParam() {},
     setTimeoutForBuffering() {},
-    setSelectTrack() {},
+    setSelectTrack(type, index) {
+      if (String(type).toUpperCase() === "AUDIO") {
+        const trackIdx = Number(index);
+        nativeAudioTracks.forEach((t, i) => {
+          t.enabled = i === trackIdx;
+        });
+        post("selectAudioTrack", { index: trackIdx });
+      }
+    },
     setSilentSubtitle() {},
     setSpeed(speed) {
       post("rate", { rate: Number(speed || 1) });
     },
     getTotalTrackInfo() {
-      return [];
+      return nativeAudioTracks.map((t, idx) => ({
+        type: "AUDIO",
+        index: idx,
+        name: t.label || t.language || `Track ${idx + 1}`,
+        extra_info: {
+          track_lang: t.language || "und",
+          fourCC: "mp4a"
+        }
+      }));
     },
     getCurrentStreamInfo() {
-      return [];
+      const active = nativeAudioTracks.find((t) => t.enabled) || nativeAudioTracks[0];
+      if (!active) return [];
+      const idx = nativeAudioTracks.indexOf(active);
+      return [
+        {
+          type: "AUDIO",
+          index: idx >= 0 ? idx : 0,
+          extra_info: {
+            track_lang: active.language || "und",
+            fourCC: "mp4a"
+          }
+        }
+      ];
     },
 
     _handleNativeEvent(event) {
@@ -168,10 +199,23 @@ export function createVegaPlayerBridge() {
         }
       }
 
+      if (Array.isArray(event.audioTracks)) {
+        nativeAudioTracks = event.audioTracks;
+      }
+
       switch (name) {
+        case "audiotracks":
+          if (Array.isArray(event.audioTracks)) {
+            nativeAudioTracks = event.audioTracks;
+          }
+          break;
+
         case "canplay":
         case "loadedmetadata":
         case "loadeddata":
+          if (Array.isArray(event.audioTracks)) {
+            nativeAudioTracks = event.audioTracks;
+          }
           if (state === "IDLE") {
             state = "READY";
           }
