@@ -180,46 +180,19 @@ export function createPlayerScreenMethods18() {
       const message = String(this.startupErrorMessage || "").trim() || t("player_error_playback_fallback", {}, "Playback error");
       const detailLines = Array.isArray(this.startupErrorDetails) ? this.startupErrorDetails.filter(Boolean) : [];
       const hasCandidates = Array.isArray(this.sourceCandidates) && this.sourceCandidates.length > 0;
-      const diag = this.playbackDiagnostic || null;
-      const online = typeof navigator !== "undefined" ? navigator.onLine : true;
-      const candidate = this.getCurrentStreamCandidate() || this.initialStreamCandidate;
-      const sourceName = candidate?.name || candidate?.title || candidate?.description || "";
-      const addonName = candidate?.addonName || "";
-      const formatParts = [];
-      if (diag?.codecs?.resolution) formatParts.push(diag.codecs.resolution);
-      if (diag?.codecs?.sourceQuality) formatParts.push(diag.codecs.sourceQuality);
-      if (diag?.codecs?.video?.length) formatParts.push(diag.codecs.video.join(", "));
-      if (diag?.codecs?.audio?.length) formatParts.push(diag.codecs.audio.join(", "));
-      if (diag?.codecs?.hdr?.length) formatParts.push(diag.codecs.hdr.join(", "));
-      if (diag?.codecs?.container) formatParts.push(diag.codecs.container);
-      const formatString = formatParts.join(" • ");
-
       overlay.innerHTML = `
           <div class="player-startup-error-shell">
-            <div class="player-error-diagnostic-card">
-              <div class="player-error-badge-row">
-                <span class="player-error-category-badge ${escapeHtml(diag?.category || "unknown")}">
-                  <span class="player-error-badge-icon">${escapeHtml(diag?.icon || "⚠️")}</span>
-                  <span>${escapeHtml(diag?.badge || t("player_error_title", {}, "Playback Error"))}</span>
-                </span>
-                <span class="player-error-network-badge ${online ? "online" : "offline"}">
-                  ${online ? "🟢 Internet: Połączono" : "🔴 Internet: Rozłączono"}
-                </span>
+            <div class="player-startup-error-title">${escapeHtml(t("player_error_title", {}, "Playback Error"))}</div>
+            <div class="player-startup-error-message" role="status" aria-live="polite">${escapeHtml(message)}</div>
+            ${
+              detailLines.length
+                ? `
+              <div class="player-startup-error-details" aria-label="${escapeHtml(t("player_error_details", {}, "Playback error details"))}">
+                ${detailLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}
               </div>
-              <div class="player-startup-error-title">${escapeHtml(diag?.title || message)}</div>
-              <div class="player-error-explanation">${escapeHtml(diag?.explanation || message)}</div>
-              ${
-                diag?.recommendation
-                  ? `<div class="player-error-recommendation">💡 <strong>Wskazówka:</strong> ${escapeHtml(diag.recommendation)}</div>`
-                  : ""
-              }
-              <div class="player-error-meta-grid">
-                ${sourceName ? `<div class="player-error-meta-item"><span class="player-error-meta-label">🎬 Wydanie / Plik:</span><span class="player-error-meta-val">${escapeHtml(sourceName)}</span></div>` : ""}
-                ${addonName ? `<div class="player-error-meta-item"><span class="player-error-meta-label">📡 Źródło / Wtyczka:</span><span class="player-error-meta-val">${escapeHtml(addonName)}</span></div>` : ""}
-                ${formatString ? `<div class="player-error-meta-item"><span class="player-error-meta-label">🎞️ Wykryty format:</span><span class="player-error-meta-val">${escapeHtml(formatString)}</span></div>` : ""}
-                ${diag?.host ? `<div class="player-error-meta-item"><span class="player-error-meta-label">🖥️ Serwer (Host):</span><span class="player-error-meta-val">${escapeHtml(diag.host)}</span></div>` : ""}
-              </div>
-            </div>
+            `
+                : ""
+            }
             <div class="player-startup-error-actions">
               <button class="player-startup-error-button focusable is-primary" type="button" tabindex="-1" data-player-error-action="retry">
                 ${escapeHtml(t("retry", {}, "Spróbuj ponownie"))}
@@ -237,18 +210,6 @@ export function createPlayerScreenMethods18() {
                 ${escapeHtml(t("player_go_back", {}, "Wróć"))}
               </button>
             </div>
-            ${
-              detailLines.length
-                ? `
-              <details class="player-error-tech-details">
-                <summary class="player-error-tech-summary">Szczegóły techniczne (kod błędu, diagnostyka)</summary>
-                <div class="player-startup-error-details" aria-label="${escapeHtml(t("player_error_details", {}, "Playback error details"))}">
-                  ${detailLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}
-                </div>
-              </details>
-            `
-                : ""
-            }
           </div>
         `;
       this.uiRefs = {
