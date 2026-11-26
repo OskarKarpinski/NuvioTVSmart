@@ -1,5 +1,6 @@
 import * as internals from "./homeScreenContext.js";
 import { registerHomeDomNodes } from "./homeDomUpdate.js";
+import { isMenuKey } from "../../../platform/sharedKeys.js";
 
 export function createHomeScreenMethods28() {
   const {
@@ -85,6 +86,12 @@ export function createHomeScreenMethods28() {
         return;
       }
       const isHomeHoldTarget = this.isHomeHoldTarget(currentFocusedNode);
+      if (isMenuKey(event) && isHomeHoldTarget) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        this.openHoldMenuForNode(currentFocusedNode);
+        return;
+      }
       if (code === 13 && isHomeHoldTarget) {
         event.preventDefault?.();
         if (!event?.repeat && !this.hasPendingContinueWatchingHold(currentFocusedNode)) {

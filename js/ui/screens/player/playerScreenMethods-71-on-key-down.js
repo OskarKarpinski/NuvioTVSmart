@@ -1,5 +1,6 @@
 import { isStreamInfoKey } from "./streamInfoOverlay.js";
 import { shouldExitPostPlayOnLongBack } from "../../../core/player/postPlayBackPolicy.js";
+import { isMenuKey } from "../../../platform/sharedKeys.js";
 /* eslint-disable no-unused-vars */
 import * as internals from "./playerScreenContext.js";
 
@@ -184,6 +185,27 @@ export function createPlayerScreenMethods71() {
         }
       }
 
+      if (isMenuKey(event)) {
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        if (this.subtitleDialogVisible) {
+          this.closeSubtitleDialog();
+        } else if (this.audioDialogVisible) {
+          this.closeAudioDialog();
+        } else if (this.sourcesPanelVisible) {
+          this.closeSourcesPanel();
+        } else if (this.chaptersPanelVisible) {
+          this.closeChaptersPanel();
+        } else if (this.speedDialogVisible) {
+          this.closeSpeedDialog?.();
+        } else if (this.episodePanelVisible) {
+          this.toggleEpisodePanel();
+        } else {
+          this.openSubtitleDialog();
+        }
+        return;
+      }
+
       if (keyCode === 83) {
         if (this.subtitleDialogVisible) {
           this.closeSubtitleDialog();
@@ -302,6 +324,10 @@ export function createPlayerScreenMethods71() {
         }
         if (keyCode === 38) {
           this.autoHideControlsAfterSeek = false;
+          if (Array.isArray(this.playerChapters) && this.playerChapters.length > 1) {
+            this.openChaptersPanel();
+            return;
+          }
           this.setControlsVisible(true, { focus: true });
           return;
         }

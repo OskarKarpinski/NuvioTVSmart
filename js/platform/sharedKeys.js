@@ -39,6 +39,9 @@ function getKeyCodeFromName(keyName) {
     goback: 10009,
     browserback: 10009,
     xf86back: 10009,
+    menu: 82,
+    contextmenu: 82,
+    options: 82,
     // Samsung TV reports the remote Enter/OK key as keyName "Return".
     // The actual Back key is exposed as Back/XF86Back (keyCode 10009).
     return: 13,
@@ -52,6 +55,22 @@ function getKeyCodeFromName(keyName) {
     mediatrackprevious: 177
   };
   return keyMap[normalized] || 0;
+}
+
+export function isMenuKey(event) {
+  const code = Number(event?.keyCode || event?.which || 0);
+  const key = String(event?.key || "").toLowerCase();
+  const keyName = String(event?.keyName || event?.detail?.keyName || "").toLowerCase();
+  const codeName = String(event?.code || "").toLowerCase();
+  return (
+    code === 82 ||
+    code === 93 ||
+    key === "contextmenu" ||
+    key === "menu" ||
+    keyName === "menu" ||
+    keyName === "contextmenu" ||
+    codeName === "contextmenu"
+  );
 }
 
 function isMediaKeyEvent(event, normalizedCode = null) {
@@ -75,10 +94,10 @@ function isMediaKeyEvent(event, normalizedCode = null) {
   if (mediaNames.has(key) || mediaNames.has(keyName) || mediaNames.has(code)) {
     return true;
   }
-  return (
-    [179, 10252, 415, 19, 413, 178, 417, 412, 176, 177].includes(effectiveCode) ||
-    [179, 10252, 415, 19, 413, 178, 417, 412, 176, 177].includes(rawCode)
-  );
+  const mediaCodes = [
+    179, 10252, 415, 19, 413, 178, 417, 412, 176, 177, 85, 126, 127, 86, 87, 88, 89, 90
+  ];
+  return mediaCodes.includes(effectiveCode) || mediaCodes.includes(rawCode);
 }
 
 function isEditableTarget(target) {

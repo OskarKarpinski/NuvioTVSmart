@@ -39,14 +39,22 @@ export function createPlayerScreenMethods33() {
       const codeMap = {
         179: "toggle",
         10252: "toggle",
+        85: "toggle",
         415: "play",
+        126: "play",
         19: "pause",
+        127: "pause",
         413: "stop",
         178: "stop",
+        86: "stop",
         417: "fastForward",
+        90: "fastForward",
         412: "rewind",
+        89: "rewind",
         176: "next",
+        87: "next",
         177: "previous",
+        88: "previous",
         427: "chapterNext",
         428: "chapterPrevious"
       };

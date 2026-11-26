@@ -30,7 +30,12 @@ export function isModernTvProfile(profile = null) {
 // Keep artwork bitmap bounding enabled on modern >= 2 GB TVs even when the
 // adaptive pace check demotes them to measured-slow: falling back to unbounded
 // 4K/full-res bitmaps multiplies decoded texture pressure and worsens stalls.
+// On Vega OS (Fire TV Stick) with limited RAM, bounding is mandatory to prevent
+// decoded full-resolution bitmaps from causing Out Of Memory crashes.
 export function canUseModernTvArtworkBounding(profile = null, deviceMemory = getDeviceMemoryGb()) {
+  if (profile?.platform === "vega") {
+    return true;
+  }
   if (!profile?.isTvRuntime || profile.isLegacyTvRuntime || isLowMemoryDevice(deviceMemory)) {
     return false;
   }
@@ -51,11 +56,15 @@ export function getDeviceMemoryGb() {
 }
 
 export function getArtworkEvictIdleMs(profile = null, deviceMemory = 0) {
+  if (profile?.platform === "vega") return 0;
   if (isLowMemoryDevice(deviceMemory)) return 0;
   return isModernTvProfile(profile) ? HOME_TV_PERFORMANCE_POLICY.modernArtworkEvictIdleMs : 0;
 }
 
 export function getArtworkEvictMarginPx(profile = null, deviceMemory = 0) {
+  if (profile?.platform === "vega") {
+    return HOME_TV_PERFORMANCE_POLICY.legacyArtworkEvictMarginPx;
+  }
   if (isLowMemoryDevice(deviceMemory)) {
     return HOME_TV_PERFORMANCE_POLICY.legacyArtworkEvictMarginPx;
   }
@@ -65,6 +74,9 @@ export function getArtworkEvictMarginPx(profile = null, deviceMemory = 0) {
 }
 
 export function getTrailerCleanupDelayMs(profile = null) {
+  if (profile?.platform === "vega") {
+    return HOME_TV_PERFORMANCE_POLICY.legacyTrailerCleanupDelayMs;
+  }
   return isModernTvProfile(profile)
     ? HOME_TV_PERFORMANCE_POLICY.modernTrailerCleanupDelayMs
     : HOME_TV_PERFORMANCE_POLICY.legacyTrailerCleanupDelayMs;
@@ -81,6 +93,9 @@ export function getTrailerMountGraceMs(profile = null) {
 }
 
 export function getArtworkCacheLimit(profile = null, deviceMemory = 0) {
+  if (profile?.platform === "vega") {
+    return HOME_TV_PERFORMANCE_POLICY.lowMemoryArtworkCacheEntries;
+  }
   if (isLowMemoryDevice(deviceMemory)) {
     return HOME_TV_PERFORMANCE_POLICY.lowMemoryArtworkCacheEntries;
   }

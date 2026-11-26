@@ -16,6 +16,12 @@ const modern = { isTvRuntime: true, isPerformanceConstrained: false, isLegacyTvR
 const constrained = { isTvRuntime: true, isPerformanceConstrained: true, isLegacyTvRuntime: true };
 const legacyOnly = { isTvRuntime: true, isPerformanceConstrained: false, isLegacyTvRuntime: true };
 const browser = { isTvRuntime: false, isPerformanceConstrained: false, isLegacyTvRuntime: false };
+const vega = {
+  isTvRuntime: true,
+  platform: "vega",
+  isPerformanceConstrained: false,
+  isLegacyTvRuntime: false
+};
 
 test("modern TVs keep a wider artwork window and defer eviction", () => {
   assert.equal(isModernTvProfile(modern), true);
@@ -87,4 +93,14 @@ test("modern >=2 GB TVs keep bounded artwork rescaling even when measured slow",
   assert.equal(canUseModernTvArtworkBounding(legacyOnly, 4), false);
   assert.equal(canUseModernTvArtworkBounding(browser, 4), false);
   assert.equal(canUseModernTvArtworkBounding(null, 4), false);
+});
+
+test("Vega OS enforces bounded artwork rescaling while keeping low-RAM cache and eviction bounds", () => {
+  assert.equal(canUseModernTvArtworkBounding(vega, 1), true);
+  assert.equal(canUseModernTvArtworkBounding(vega, 2), true);
+  assert.equal(getArtworkCacheLimit(vega, 1), 200);
+  assert.equal(getArtworkCacheLimit(vega, 4), 200);
+  assert.equal(getArtworkEvictIdleMs(vega, 2), 0);
+  assert.equal(getArtworkEvictMarginPx(vega, 2), 1600);
+  assert.equal(getTrailerCleanupDelayMs(vega), 80);
 });
