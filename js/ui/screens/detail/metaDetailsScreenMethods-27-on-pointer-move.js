@@ -15,6 +15,23 @@ export function createMetaDetailsScreenMethods27() {
       if (!target || !this.container?.contains?.(target)) {
         return false;
       }
+      const trailerTarget = target?.closest?.("[data-trailer-action]");
+      if (trailerTarget) {
+        const trailerAction = String(trailerTarget.dataset.trailerAction || "");
+        this.restartTrailerControlsTimer();
+        if (trailerAction === "rewind") {
+          this.seekTrailerBy(-10);
+          return true;
+        }
+        if (trailerAction === "fastForward") {
+          this.seekTrailerBy(10);
+          return true;
+        }
+        if (trailerAction === "toggle") {
+          this.toggleActiveTrailerPlayback();
+          return true;
+        }
+      }
       const actionTarget = target?.closest?.("[data-action]");
       const action = String(actionTarget?.dataset?.action || "");
       if (action === "toggleTrailer") {

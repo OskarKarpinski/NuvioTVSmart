@@ -17,10 +17,36 @@ export function createPlayerScreenMethods71() {
       if (this.isStartupErrorVisible()) {
         event?.preventDefault?.();
         event?.stopPropagation?.();
-        if (isBackKey || isSelectKeyCode(keyCode) || keyCode === 66) {
+        if (isBackKey) {
           if (!this.navigateBackToStreamScreen()) {
             Router.back();
           }
+          return;
+        }
+        if (keyCode === 37) {
+          this.moveStartupErrorFocus(-1);
+          return;
+        }
+        if (keyCode === 39) {
+          this.moveStartupErrorFocus(1);
+          return;
+        }
+        if (isSelectKeyCode(keyCode) || keyCode === 66 || keyCode === 13) {
+          const focusedBtn =
+            this.uiRefs?.startupErrorOverlay?.querySelector(".player-startup-error-button.focused") || document.activeElement;
+          const action = String(focusedBtn?.dataset?.playerErrorAction || "");
+          if (action === "retry") {
+            void this.retryPlaybackAfterError();
+            return;
+          }
+          if (action === "sources") {
+            this.chooseSourceAfterError();
+            return;
+          }
+          if (!this.navigateBackToStreamScreen()) {
+            Router.back();
+          }
+          return;
         }
         return;
       }

@@ -199,6 +199,20 @@ export function createMetaDetailsScreenMethods19() {
                 </div>
               </div>
               <div class="detail-trailer-controls-row">
+                <div class="detail-trailer-actions">
+                  <button class="detail-trailer-btn focusable" type="button" data-trailer-action="rewind" title="${escapeHtml(t("cd_rewind", {}, "Rewind 10s"))}" aria-label="${escapeHtml(t("cd_rewind", {}, "Rewind 10s"))}">
+                    <svg viewBox="0 0 24 24" class="detail-trailer-btn-icon" aria-hidden="true"><path fill="currentColor" d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+                    <span class="detail-trailer-btn-label">10</span>
+                  </button>
+                  <button class="detail-trailer-btn detail-trailer-btn-play is-primary focusable" type="button" data-trailer-action="toggle" title="${escapeHtml(t("cd_play_pause", {}, "Play/Pause"))}" aria-label="${escapeHtml(t("cd_play_pause", {}, "Play/Pause"))}">
+                    <img class="detail-trailer-btn-icon detail-trailer-icon-play" src="assets/icons/ic_player_play.svg" alt="" aria-hidden="true" />
+                    <img class="detail-trailer-btn-icon detail-trailer-icon-pause" src="assets/icons/ic_player_pause.svg" alt="" aria-hidden="true" style="display:none;" />
+                  </button>
+                  <button class="detail-trailer-btn focusable" type="button" data-trailer-action="fastForward" title="${escapeHtml(t("cd_fast_forward", {}, "Forward 10s"))}" aria-label="${escapeHtml(t("cd_fast_forward", {}, "Forward 10s"))}">
+                    <span class="detail-trailer-btn-label">10</span>
+                    <svg viewBox="0 0 24 24" class="detail-trailer-btn-icon" aria-hidden="true"><path fill="currentColor" d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+                  </button>
+                </div>
                 <div class="detail-trailer-time" data-trailer-time-label>0:00 / 0:00</div>
               </div>
             </div>
@@ -233,7 +247,10 @@ export function createMetaDetailsScreenMethods19() {
           `;
         this.cacheTrailerRefs();
         if (this.trailerPlaybackMode === "manual") {
-          focusWithoutScroll(this.trailerUiRefs?.overlay);
+          const initialFocus = this.trailerUiRefs?.playBtn || this.trailerUiRefs?.overlay;
+          if (initialFocus) {
+            focusWithoutScroll(initialFocus);
+          }
           this.startTrailerProgressTimer();
         }
         this.initYoutubeTrailerPlayer();
@@ -249,7 +266,10 @@ export function createMetaDetailsScreenMethods19() {
         `;
       this.cacheTrailerRefs();
       if (this.trailerPlaybackMode === "manual") {
-        focusWithoutScroll(this.trailerUiRefs?.overlay);
+        const initialFocus = this.trailerUiRefs?.playBtn || this.trailerUiRefs?.overlay;
+        if (initialFocus) {
+          focusWithoutScroll(initialFocus);
+        }
       }
       this.applyTrailerVideoSubtitleState(this.trailerUiRefs?.video || null);
       this.bindTrailerVideoEvents(this.trailerUiRefs?.video || null);
@@ -308,8 +328,9 @@ export function createMetaDetailsScreenMethods19() {
       this.isTrailerPlaying = true;
       this.syncTrailerDom();
       if (this.trailerPlaybackMode === "manual") {
-        this.stopTrailerControlsTimer();
-        this.setTrailerControlsVisible(false);
+        this.setTrailerControlsVisible(true);
+        this.restartTrailerControlsTimer();
+        this.scheduleTrailerFallbackReveal(this.trailerSource?.ytId);
       }
     },
     openTrailerInPlayer() {

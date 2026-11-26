@@ -111,12 +111,59 @@ export function createPlayerScreenMethods18() {
       }
       return `${baseMessage}. ${normalizedExtra}`;
     },
-    focusStartupErrorButton() {
-      const button = this.uiRefs?.startupErrorButton;
-      if (button?.focus) {
-        button.focus();
+    focusStartupErrorButton(preferredAction = "retry") {
+      const overlay = this.uiRefs?.startupErrorOverlay;
+      if (!overlay) return;
+      const buttons = Array.from(overlay.querySelectorAll(".player-startup-error-button"));
+      if (!buttons.length) return;
+      let target = buttons.find((btn) => btn.dataset.playerErrorAction === preferredAction);
+      if (!target) {
+        target = buttons.find((btn) => btn.dataset.playerErrorAction === "sources") || buttons[0];
       }
-      button?.classList?.add("focused");
+      buttons.forEach((btn) => btn.classList.toggle("focused", btn === target));
+      try {
+        target?.focus?.({ preventScroll: true });
+      } catch (_) {
+        target?.focus?.();
+      }
+    },
+    moveStartupErrorFocus(delta = 1) {
+      const overlay = this.uiRefs?.startupErrorOverlay;
+      if (!overlay) return;
+      const buttons = Array.from(overlay.querySelectorAll(".player-startup-error-button"));
+      if (buttons.length <= 1) return;
+      const currentIndex = buttons.findIndex((btn) => btn.classList.contains("focused") || document.activeElement === btn);
+      const nextIndex = clamp(currentIndex + delta, 0, buttons.length - 1);
+      const target = buttons[nextIndex];
+      buttons.forEach((btn) => btn.classList.toggle("focused", btn === target));
+      try {
+        target?.focus?.({ preventScroll: true });
+      } catch (_) {
+        target?.focus?.();
+      }
+    },
+    async retryPlaybackAfterError() {
+      const candidate = this.getCurrentStreamCandidate() || this.initialStreamCandidate;
+      if (this.currentTime > 0 && !this.pendingPlaybackRestore) {
+        this.pendingPlaybackRestore = {
+          timeSeconds: this.currentTime,
+          paused: false,
+          attempts: 0,
+          lastAttemptAt: 0
+        };
+      }
+      this.clearStartupError();
+      if (candidate) {
+        await this.playStreamCandidate(candidate, { preservePlaybackState: true });
+      } else if (this.activePlaybackUrl) {
+        await this.startPlayerControllerPlayback(this.activePlaybackUrl, {}, { mountToken: this.playerMountToken });
+      } else {
+        this.navigateBackToStreamScreen();
+      }
+    },
+    chooseSourceAfterError() {
+      this.clearStartupError();
+      this.openSourcesPanel();
     },
     renderStartupErrorOverlay() {
       const overlay = this.uiRefs?.startupErrorOverlay;
@@ -132,6 +179,7 @@ export function createPlayerScreenMethods18() {
       }
       const message = String(this.startupErrorMessage || "").trim() || t("player_error_playback_fallback", {}, "Playback error");
       const detailLines = Array.isArray(this.startupErrorDetails) ? this.startupErrorDetails.filter(Boolean) : [];
+      const hasCandidates = Array.isArray(this.sourceCandidates) && this.sourceCandidates.length > 0;
       overlay.innerHTML = `
           <div class="player-startup-error-shell">
             <div class="player-startup-error-title">${escapeHtml(t("player_error_title", {}, "Playback Error"))}</div>
@@ -145,15 +193,32 @@ export function createPlayerScreenMethods18() {
             `
                 : ""
             }
-            <button class="player-startup-error-button focusable focused" type="button" tabindex="-1" data-player-error-action="back">
-              ${escapeHtml(t("player_go_back", {}, "Go Back"))}
-            </button>
+            <div class="player-startup-error-actions">
+              <button class="player-startup-error-button focusable is-primary" type="button" tabindex="-1" data-player-error-action="retry">
+                ${escapeHtml(t("retry", {}, "Spróbuj ponownie"))}
+              </button>
+              ${
+                hasCandidates
+                  ? `
+                <button class="player-startup-error-button focusable" type="button" tabindex="-1" data-player-error-action="sources">
+                  ${escapeHtml(t("sources_title", {}, "Wybierz inne źródło"))}
+                </button>
+              `
+                  : ""
+              }
+              <button class="player-startup-error-button focusable" type="button" tabindex="-1" data-player-error-action="back">
+                ${escapeHtml(t("player_go_back", {}, "Wróć"))}
+              </button>
+            </div>
           </div>
         `;
       this.uiRefs = {
         ...(this.uiRefs || {}),
-        startupErrorButton: overlay.querySelector(".player-startup-error-button")
+        startupErrorButton:
+          overlay.querySelector('.player-startup-error-button[data-player-error-action="retry"]') ||
+          overlay.querySelector(".player-startup-error-button")
       };
+      this.focusStartupErrorButton("retry");
     },
     shouldUseLoadingLogoFill() {
       return Boolean(this.currentEngineFsStream && !this.isExternalFrameMode());

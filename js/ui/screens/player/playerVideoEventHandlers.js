@@ -275,6 +275,24 @@ export function createPlayerVideoEventHandlers(video, isTizenAvPlayPlayback) {
       return;
     }
 
+    if (this.hasPresentedPlaybackFrame && mediaErrorCode === 2 && Number(this.transientNetworkRetryCount || 0) < 2) {
+      this.transientNetworkRetryCount = Number(this.transientNetworkRetryCount || 0) + 1;
+      console.warn("Transient playback network error; attempting automatic reconnect", {
+        attempt: this.transientNetworkRetryCount,
+        url: this.activePlaybackUrl
+      });
+      if (this.currentTime > 0) {
+        this.pendingPlaybackRestore = {
+          timeSeconds: this.currentTime,
+          paused: false,
+          attempts: 0,
+          lastAttemptAt: 0
+        };
+      }
+      void this.playStreamCandidate(currentSourceCandidate, { preservePlaybackState: true });
+      return;
+    }
+
     if (this.tryServerPlaybackFallback?.(currentSourceCandidate)) return;
     this.markPlaybackSourceFailed(this.activePlaybackUrl);
 
@@ -285,18 +303,31 @@ export function createPlayerVideoEventHandlers(video, isTizenAvPlayPlayback) {
     this.paused = true;
     this.dismissPauseOverlay();
     this.updateLoadingVisibility();
-    this.setControlsVisible(true, { focus: false });
-    this.sourcesError = this.formatPlaybackErrorForSources(
-      `${this.mediaErrorMessage(mediaErrorCode, playbackErrorDetail, currentSourceCandidate)}. Choose another source manually.`,
-      {
-        mediaErrorCode,
-        detail: playbackErrorDetail,
-        eventDetail,
-        streamCandidate: currentSourceCandidate,
-        playbackUrl: this.activePlaybackUrl,
-        reason: "media-error"
-      }
-    );
+    if (this.currentTime > 0) {
+      this.pendingPlaybackRestore = {
+        timeSeconds: this.currentTime,
+        paused: false,
+        attempts: 0,
+        lastAttemptAt: 0
+      };
+    }
+    const midErrorMessage = `${this.mediaErrorMessage(mediaErrorCode, playbackErrorDetail, currentSourceCandidate)}.`;
+    this.showStartupError(midErrorMessage, {
+      mediaErrorCode,
+      detail: playbackErrorDetail,
+      eventDetail,
+      streamCandidate: currentSourceCandidate,
+      playbackUrl: this.activePlaybackUrl,
+      reason: "mid-playback-media-error"
+    });
+    this.sourcesError = this.formatPlaybackErrorForSources(`${midErrorMessage} Choose another source manually.`, {
+      mediaErrorCode,
+      detail: playbackErrorDetail,
+      eventDetail,
+      streamCandidate: currentSourceCandidate,
+      playbackUrl: this.activePlaybackUrl,
+      reason: "media-error"
+    });
     if (this.currentEngineFsStream) {
       logEngineFsDebug("EngineFS playback failed; keeping torrent alive until player exit or source change", {
         reason: "playback-error",
@@ -304,9 +335,6 @@ export function createPlayerVideoEventHandlers(video, isTizenAvPlayPlayback) {
         fileIdx: this.currentEngineFsStream.fileIdx
       });
     }
-    // Keep source switching user-initiated after an in-playback failure. Opening
-    // the panel here steals focus from the player (notably on webOS) and differs
-    // from Android TV, where fatal playback errors do not open Sources.
     this.renderSourcesPanel();
 
     console.warn("Playback failed", {

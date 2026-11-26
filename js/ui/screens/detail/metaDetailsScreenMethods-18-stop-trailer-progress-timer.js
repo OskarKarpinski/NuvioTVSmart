@@ -134,7 +134,12 @@ export function createMetaDetailsScreenMethods18() {
             video: layer.querySelector(".detail-trailer-video"),
             status: layer.querySelector("[data-trailer-status]"),
             progressFill: layer.querySelector("[data-trailer-progress-fill]"),
-            timeLabel: layer.querySelector("[data-trailer-time-label]")
+            timeLabel: layer.querySelector("[data-trailer-time-label]"),
+            playBtn: layer.querySelector('[data-trailer-action="toggle"]'),
+            playIcon: layer.querySelector(".detail-trailer-icon-play"),
+            pauseIcon: layer.querySelector(".detail-trailer-icon-pause"),
+            rewindBtn: layer.querySelector('[data-trailer-action="rewind"]'),
+            forwardBtn: layer.querySelector('[data-trailer-action="fastForward"]')
           }
         : null;
     },
@@ -195,6 +200,14 @@ export function createMetaDetailsScreenMethods18() {
       const playback = this.getTrailerPlaybackSnapshot();
       this.trailerMuted = Boolean(playback.muted);
       this.trailerSubtitlesEnabled = Boolean(playback.captionsEnabled);
+      if (refs.playIcon && refs.pauseIcon) {
+        refs.playIcon.style.display = playback.paused ? "" : "none";
+        refs.pauseIcon.style.display = playback.paused ? "none" : "";
+      }
+      if (refs.playBtn) {
+        refs.playBtn.setAttribute("title", playback.paused ? t("cd_play", {}, "Play") : t("cd_pause", {}, "Pause"));
+        refs.playBtn.setAttribute("aria-label", playback.paused ? t("cd_play", {}, "Play") : t("cd_pause", {}, "Pause"));
+      }
       if (!this.trailerControlsVisible && !playback.loading && !playback.paused) {
         return;
       }
@@ -372,6 +385,7 @@ export function createMetaDetailsScreenMethods18() {
       };
       this.trailerProxyReadyReceived = false;
       this.trailerYoutubeFallbackActive = false;
+      this.scheduleTrailerFallbackReveal(ytId);
       this.startTrailerProxyLoadingTimer(ytId);
       this.updateTrailerOverlay();
     }

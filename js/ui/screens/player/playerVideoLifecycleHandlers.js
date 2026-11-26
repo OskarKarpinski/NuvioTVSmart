@@ -55,6 +55,7 @@ export function createPlayerVideoLifecycleHandlers(video, isTizenAvPlayPlayback)
     }
     this.playbackRecoveryActive = false;
     this.playbackRecoveryAttempts = 0;
+    this.transientNetworkRetryCount = 0;
     this.beginPlaybackEngineValidation();
     this.bufferingActive = false;
     this.clearBufferingSpinnerTimer();

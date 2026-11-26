@@ -25,8 +25,17 @@ export function createPlayerScreenMethods70() {
 
       const errorAction = target.closest?.("[data-player-error-action]");
       if (errorAction && this.isStartupErrorVisible()) {
-        if (String(errorAction.dataset.playerErrorAction || "") === "back") {
+        const action = String(errorAction.dataset.playerErrorAction || "");
+        if (action === "back") {
           this.navigateBackToStreamScreen();
+          return true;
+        }
+        if (action === "retry") {
+          void this.retryPlaybackAfterError();
+          return true;
+        }
+        if (action === "sources") {
+          this.chooseSourceAfterError();
           return true;
         }
         return false;

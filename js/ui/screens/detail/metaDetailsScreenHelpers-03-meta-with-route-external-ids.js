@@ -259,18 +259,21 @@ export function getTrailerMediaAction(event) {
   const keyName = String(event?.keyName || event?.detail?.keyName || "").toLowerCase();
   const code = String(event?.code || "").toLowerCase();
   const names = [key, keyName, code];
-  if (names.some((name) => name === "mediaplaypause" || name === "playpause")) {
+  if (names.some((name) => name === "mediaplaypause" || name === "playpause") || keyCode === 85 || keyCode === 179 || keyCode === 10252) {
     return "toggle";
   }
-  if (names.some((name) => name === "mediaplay" || name === "play")) {
+  if (names.some((name) => name === "mediaplay" || name === "play") || keyCode === 126 || keyCode === 415) {
     return "play";
   }
-  if (names.some((name) => name === "mediapause" || name === "pause")) {
+  if (names.some((name) => name === "mediapause" || name === "pause") || keyCode === 127 || keyCode === 19) {
     return "pause";
   }
-  if (keyCode === 179 || keyCode === 10252) return "toggle";
-  if (keyCode === 415) return "play";
-  if (keyCode === 19) return "pause";
+  if (names.some((name) => name === "mediarewind" || name === "rewind") || keyCode === 89 || keyCode === 412) {
+    return "rewind";
+  }
+  if (names.some((name) => name === "mediafastforward" || name === "fastforward") || keyCode === 90 || keyCode === 417) {
+    return "fastForward";
+  }
   return "";
 }
 

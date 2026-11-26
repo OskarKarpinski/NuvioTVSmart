@@ -154,8 +154,7 @@ export function createMetaDetailsScreenMethods01() {
         if (data.type === "firstFrame") {
           const frameVideoId = String(data.videoId || "").trim();
           const activeId = String(this.trailerSource?.ytId || "").trim();
-          const frameTime = Number(data.currentTime || 0);
-          if (frameTime > 0 && (!frameVideoId || !activeId || frameVideoId === activeId)) {
+          if (!frameVideoId || !activeId || frameVideoId === activeId) {
             this.markTrailerVisualReady();
           }
           return;
@@ -185,7 +184,7 @@ export function createMetaDetailsScreenMethods01() {
           if (this.trailerYoutubeFallbackActive) {
             this.scheduleTrailerFallbackReveal(activeVideoId);
           }
-          if (!nextState.loading && Number(nextState.currentTime || 0) > 0) {
+          if (nextState.playerState === 1 || (!nextState.loading && Number(nextState.currentTime || 0) >= 0)) {
             this.markTrailerVisualReady();
           }
           if (nextState.ended) {

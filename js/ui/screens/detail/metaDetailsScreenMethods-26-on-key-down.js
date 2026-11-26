@@ -72,9 +72,14 @@ export function createMetaDetailsScreenMethods26() {
         this.restartTrailerControlsTimer();
         const direction = getDpadDirection(event);
         const mediaAction = getTrailerMediaAction(event);
-        if (event.keyCode === 13 || mediaAction === "toggle") {
+        if (mediaAction === "rewind") {
           event?.preventDefault?.();
-          this.toggleActiveTrailerPlayback();
+          this.seekTrailerBy(-10);
+          return;
+        }
+        if (mediaAction === "fastForward") {
+          event?.preventDefault?.();
+          this.seekTrailerBy(10);
           return;
         }
         if (mediaAction === "play") {
@@ -87,13 +92,54 @@ export function createMetaDetailsScreenMethods26() {
           this.setActiveTrailerPausedState(true);
           return;
         }
+        if (mediaAction === "toggle") {
+          event?.preventDefault?.();
+          this.toggleActiveTrailerPlayback();
+          return;
+        }
+        if (event.keyCode === 13) {
+          event?.preventDefault?.();
+          const focusedAction = document.activeElement?.dataset?.trailerAction;
+          if (focusedAction === "rewind") {
+            this.seekTrailerBy(-10);
+            return;
+          }
+          if (focusedAction === "fastForward") {
+            this.seekTrailerBy(10);
+            return;
+          }
+          this.toggleActiveTrailerPlayback();
+          return;
+        }
         if (direction === "left") {
           event?.preventDefault?.();
+          const rewindBtn = this.trailerUiRefs?.rewindBtn;
+          const playBtn = this.trailerUiRefs?.playBtn;
+          const forwardBtn = this.trailerUiRefs?.forwardBtn;
+          if (document.activeElement === forwardBtn && playBtn) {
+            playBtn.focus();
+            return;
+          }
+          if (document.activeElement === playBtn && rewindBtn) {
+            rewindBtn.focus();
+            return;
+          }
           this.seekTrailerBy(-getTrailerSeekStepSeconds(event));
           return;
         }
         if (direction === "right") {
           event?.preventDefault?.();
+          const rewindBtn = this.trailerUiRefs?.rewindBtn;
+          const playBtn = this.trailerUiRefs?.playBtn;
+          const forwardBtn = this.trailerUiRefs?.forwardBtn;
+          if (document.activeElement === rewindBtn && playBtn) {
+            playBtn.focus();
+            return;
+          }
+          if (document.activeElement === playBtn && forwardBtn) {
+            forwardBtn.focus();
+            return;
+          }
           this.seekTrailerBy(getTrailerSeekStepSeconds(event));
           return;
         }
@@ -104,6 +150,7 @@ export function createMetaDetailsScreenMethods26() {
             this.setTrailerControlsVisible(false);
           } else {
             this.restartTrailerControlsTimer();
+            this.trailerUiRefs?.playBtn?.focus?.();
           }
           return;
         }

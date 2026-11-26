@@ -82,8 +82,86 @@
 .detail-trailer-controls-row {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: clamp(18px, 1.3vw, 28px);
+}
+
+.detail-trailer-actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 0.9vw, 18px);
+}
+
+.detail-trailer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.14);
+  color: #f4f8fd;
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    transform 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease;
+  position: relative;
+}
+
+.detail-trailer-btn-play {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  background: rgba(var(--focus-color-rgb-legacy), 0.35);
+  border-color: rgba(var(--focus-color-rgb-legacy), 0.55);
+}
+
+.detail-trailer-btn.focused,
+.detail-trailer-btn:focus {
+  outline: none;
+  background: #ffffff;
+  color: #0b0e14;
+  border-color: #ffffff;
+  transform: scale(1.12);
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.detail-trailer-btn-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.detail-trailer-btn-play .detail-trailer-btn-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.detail-trailer-btn-icon:not(svg) {
+  filter: invert(1) brightness(1.15);
+}
+
+.detail-trailer-btn.focused .detail-trailer-btn-icon:not(svg) {
+  filter: brightness(0) !important;
+}
+
+.detail-trailer-btn.focused svg path {
+  fill: #0b0e14;
+}
+
+.detail-trailer-btn-label {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .detail-trailer-time {
