@@ -826,6 +826,13 @@ async function runBuild() {
       path.join(rootDir, "node_modules", "libbitsub", "LICENSE"),
       path.join(distDir, "assets", "libs", "libbitsub.LICENSE")
     );
+    try {
+      await cp(
+        path.join(rootDir, "services", "webos", "runtime", "dts"),
+        path.join(distDir, "audio-transcode", "assets"),
+        { recursive: true }
+      );
+    } catch (_) {}
 
     if (!copiedAppInfoSource) {
       console.warn("WARNING: skipping appinfo.json because it is not present in the repo root.");

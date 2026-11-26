@@ -453,7 +453,18 @@ export function getWebOsAudioTrackCompatibilityText(track = {}) {
   return getAudioTrackCodecCompatibilityText(track, getTrackMetadataStrings(track).join(" "));
 }
 
+export function isUnsupportedVegaAudioTrack(track = {}) {
+  if (!Environment.isVega?.()) {
+    return false;
+  }
+  const text = getWebOsAudioTrackCompatibilityText(track);
+  return /\b(dts|dts[\s_-]*hd|dts[\s_-]*hd[\s_-]*ma|dts[\s_-]*x|dtsx|true[\s_-]*hd|dolby[\s_-]*truehd|mlp[\s_-]*fba)\b/i.test(text);
+}
+
 export function isUnsupportedWebOsAudioTrack(track = {}) {
+  if (Environment.isVega?.()) {
+    return isUnsupportedVegaAudioTrack(track);
+  }
   if (!Environment.isWebOS()) {
     return false;
   }
@@ -465,9 +476,11 @@ export function isUnsupportedWebOsAudioTrack(track = {}) {
 
 export function getAudioTrackSupportState(track = {}) {
   const supported = !isUnsupportedWebOsAudioTrack(track);
+  const compatText = getWebOsAudioTrackCompatibilityText(track);
   return {
     supported,
-    canTryAudioConversion: !supported && Environment.isWebOS() && /dts|true[\s_-]*hd/i.test(getWebOsAudioTrackCompatibilityText(track)),
+    canTryAudioConversion:
+      !supported && (Environment.isWebOS() || Environment.isVega?.()) && /dts|true[\s_-]*hd|mlp[\s_-]*fba/i.test(compatText),
     unsupportedReason: supported ? null : "codec"
   };
 }

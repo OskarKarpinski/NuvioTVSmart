@@ -111,7 +111,11 @@ export function createPlayerScreenMethods61() {
       if (Number.isFinite(selectedEntry.embeddedAudioTrackIndex)) {
         const embeddedTrack = this.getEmbeddedAudioTrackByEmbeddedIndex(selectedEntry.embeddedAudioTrackIndex);
         let applied = false;
-        if (Environment.isTizen() && typeof PlayerController.isUsingAvPlay === "function" && PlayerController.isUsingAvPlay()) {
+        if (
+          (Environment.isTizen() || Environment.isVega?.()) &&
+          typeof PlayerController.isUsingAvPlay === "function" &&
+          PlayerController.isUsingAvPlay()
+        ) {
           const nativeTrackIndex = Number(embeddedTrack?.nativeTrackIndex);
           applied =
             typeof PlayerController.setAvPlayAudioTrack === "function" && Number.isFinite(nativeTrackIndex)
