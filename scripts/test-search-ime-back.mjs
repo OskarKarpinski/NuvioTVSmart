@@ -174,4 +174,62 @@ test("A results patch does not reopen the IME the user dismissed", () => {
   assert.equal(input.focusCalls, 1, "editing focus still follows the input when the IME is open");
 });
 
+test("Back key dismisses the active IME editing session first before stepping back", async () => {
+  const platform = { isTizen: () => false, isBackEvent: () => true };
+  let openSidebarCalls = 0;
+  const screenMethods = loadFactory(
+    "js/ui/screens/search/searchScreenMethods-06-activate-action-node.js",
+    "createSearchScreenMethods06",
+    {
+      Router: {},
+      ScreenUtils: { handleDpadNavigation: () => false },
+      Platform: platform,
+      resetDpadRepeat() {},
+      activateLegacySidebarAction() {},
+      getRootSidebarNodes: () => [],
+      isSelectedSidebarAction: () => false,
+      isRootSidebarNode: () => false,
+      setModernSidebarPillIconOnly() {},
+      clamp: (value, min, max) => Math.max(min, Math.min(max, value))
+    }
+  )();
+
+  const input = {
+    value: "dune",
+    blurred: 0,
+    blur() {
+      this.blurred += 1;
+    }
+  };
+  const container = {
+    querySelector: (selector) =>
+      selector === "#searchInput" || selector === ".focusable.focused" ? input : null
+  };
+  const screen = {
+    ...screenMethods,
+    container,
+    focusZone: "content",
+    layoutPrefs: {},
+    suppressHoldMenuEnterUntilKeyUp: false,
+    imeDismissed: false,
+    isSearchInputEditingActive: () => true,
+    stepBackWithinSearch: () => false,
+    openSidebar: async () => {
+      openSidebarCalls += 1;
+    },
+    cancelPendingPosterHold() {},
+    isPosterHoldTarget: () => false
+  };
+
+  // First Back: blurs input and sets imeDismissed = true, does NOT open sidebar
+  await screen.onKeyDown({ keyCode: 10009, target: input, preventDefault() {} });
+  assert.equal(input.blurred, 1, "First Back must blur active input");
+  assert.equal(screen.imeDismissed, true);
+  assert.equal(openSidebarCalls, 0, "First Back must not open sidebar");
+
+  // Second Back: imeDismissed is now true, so it delegates to openSidebar
+  await screen.onKeyDown({ keyCode: 10009, target: input, preventDefault() {} });
+  assert.equal(openSidebarCalls, 1, "Second Back opens sidebar");
+});
+
 console.log("Search IME Back checks passed");

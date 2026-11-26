@@ -581,7 +581,7 @@ export function createMetaDetailsScreenMethods16() {
           return;
         }
         if (!this.isTrailerPlaying) {
-          if (target.matches('.series-detail-actions [data-action="playDefault"]')) {
+          if (target.closest(".series-detail-actions")) {
             this.restartTrailerAutoplayTimer();
           } else if (this.trailerAutoplayTimer) {
             clearTimeout(this.trailerAutoplayTimer);

@@ -105,6 +105,39 @@ test("createVegaPlayerBridge drives native player lifecycle and callbacks", () =
     });
     const updatedStream = bridge.getCurrentStreamInfo();
     assert.equal(updatedStream[0].index, 1);
+
+    // Test text (subtitle) tracks handling
+    bridge._handleNativeEvent({
+      name: "texttracks",
+      textTracks: [
+        { index: 0, label: "English Subs", language: "eng", mode: "disabled" },
+        { index: 1, label: "Polish Subs", language: "pol", mode: "showing" }
+      ]
+    });
+    const totalTracksWithSubs = bridge.getTotalTrackInfo();
+    assert.equal(totalTracksWithSubs.length, 4);
+    assert.equal(totalTracksWithSubs[2].type, "TEXT");
+    assert.equal(totalTracksWithSubs[2].name, "English Subs");
+    assert.equal(totalTracksWithSubs[3].extra_info.track_lang, "pol");
+
+    const streamWithSubs = bridge.getCurrentStreamInfo();
+    assert.equal(streamWithSubs.length, 2);
+    assert.equal(streamWithSubs[1].type, "TEXT");
+    assert.equal(streamWithSubs[1].index, 1);
+
+    bridge.setSelectTrack("TEXT", 0);
+    assert.deepEqual(messages[messages.length - 1], {
+      type: "NUVIO_VEGA_PLAYER",
+      action: "selectTextTrack",
+      index: 0
+    });
+
+    bridge.setSilentSubtitle(true);
+    assert.deepEqual(messages[messages.length - 1], {
+      type: "NUVIO_VEGA_PLAYER",
+      action: "setSilentSubtitle",
+      silent: true
+    });
   } finally {
     globalThis.ReactNativeWebView = previousBridge;
   }

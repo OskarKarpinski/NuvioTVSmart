@@ -183,6 +183,12 @@ export function createSearchScreenMethods06() {
 
       if (Platform.isBackEvent(event)) {
         event.preventDefault?.();
+        const input = this.container?.querySelector("#searchInput");
+        if (input && (globalThis.document?.activeElement === input || this.isSearchInputEditingActive(event)) && !this.imeDismissed) {
+          this.imeDismissed = true;
+          input.blur?.();
+          return;
+        }
         if (this.focusZone !== "sidebar" && this.stepBackWithinSearch(currentFocusedNode)) {
           return;
         }

@@ -190,13 +190,20 @@
   font-size: 34px;
   font-weight: 500;
   box-sizing: border-box;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
 }
 
 .search-discover-btn.focused,
 .search-voice-btn.focused,
 .search-input-field.focused {
   border-color: var(--secondary-color);
-  box-shadow: 0 0 0 2px rgba(var(--secondary-color-rgb-legacy), 0.22);
+  box-shadow:
+    0 0 0 3px var(--secondary-color),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+  background: var(--focus-bg);
 }
 
 .search-input-field::placeholder {
@@ -205,6 +212,10 @@
 
 .search-input-field:focus {
   outline: none;
+  border-color: var(--secondary-color);
+  box-shadow:
+    0 0 0 3px var(--secondary-color),
+    0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .search-empty-state {

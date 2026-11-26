@@ -25,6 +25,7 @@ export function createVegaPlayerBridge() {
   let seekingTargetMs = null;
   let seekFallbackTimer = null;
   let nativeAudioTracks = [];
+  let nativeTextTracks = [];
 
   function post(action, data = {}) {
     postToVegaHost({ type: "NUVIO_VEGA_PLAYER", action, ...data });
@@ -39,6 +40,7 @@ export function createVegaPlayerBridge() {
       pendingSeek = null;
       seekingTargetMs = null;
       nativeAudioTracks = [];
+      nativeTextTracks = [];
       if (seekFallbackTimer) {
         clearTimeout(seekFallbackTimer);
         seekFallbackTimer = null;
@@ -111,6 +113,7 @@ export function createVegaPlayerBridge() {
       seekingTargetMs = null;
       pendingSeek = null;
       nativeAudioTracks = [];
+      nativeTextTracks = [];
       globalThis.document?.documentElement?.classList?.remove("vega-native-player-active");
       globalThis.document?.body?.classList?.remove("vega-native-player-active");
       post("close");
@@ -134,20 +137,35 @@ export function createVegaPlayerBridge() {
     setBufferingParam() {},
     setTimeoutForBuffering() {},
     setSelectTrack(type, index) {
-      if (String(type).toUpperCase() === "AUDIO") {
+      const normalizedType = String(type).toUpperCase();
+      if (normalizedType === "AUDIO") {
         const trackIdx = Number(index);
         nativeAudioTracks.forEach((t, i) => {
           t.enabled = i === trackIdx;
         });
         post("selectAudioTrack", { index: trackIdx });
+      } else if (normalizedType === "TEXT") {
+        const trackIdx = Number(index);
+        nativeTextTracks.forEach((t, i) => {
+          t.mode = i === trackIdx ? "showing" : "disabled";
+        });
+        post("selectTextTrack", { index: trackIdx });
       }
     },
-    setSilentSubtitle() {},
+    setSilentSubtitle(silent) {
+      const isSilent = Boolean(silent);
+      if (isSilent) {
+        nativeTextTracks.forEach((t) => {
+          t.mode = "disabled";
+        });
+      }
+      post("setSilentSubtitle", { silent: isSilent });
+    },
     setSpeed(speed) {
       post("rate", { rate: Number(speed || 1) });
     },
     getTotalTrackInfo() {
-      return nativeAudioTracks.map((t, idx) => ({
+      const audio = nativeAudioTracks.map((t, idx) => ({
         type: "AUDIO",
         index: idx,
         name: t.label || t.language || `Track ${idx + 1}`,
@@ -156,21 +174,44 @@ export function createVegaPlayerBridge() {
           fourCC: "mp4a"
         }
       }));
+      const text = nativeTextTracks.map((t, idx) => ({
+        type: "TEXT",
+        index: idx,
+        name: t.label || t.language || `Subtitle ${idx + 1}`,
+        extra_info: {
+          track_lang: t.language || "und",
+          fourCC: "subt"
+        }
+      }));
+      return [...audio, ...text];
     },
     getCurrentStreamInfo() {
-      const active = nativeAudioTracks.find((t) => t.enabled) || nativeAudioTracks[0];
-      if (!active) return [];
-      const idx = nativeAudioTracks.indexOf(active);
-      return [
-        {
+      const current = [];
+      const activeAudio = nativeAudioTracks.find((t) => t.enabled) || nativeAudioTracks[0];
+      if (activeAudio) {
+        const idx = nativeAudioTracks.indexOf(activeAudio);
+        current.push({
           type: "AUDIO",
           index: idx >= 0 ? idx : 0,
           extra_info: {
-            track_lang: active.language || "und",
+            track_lang: activeAudio.language || "und",
             fourCC: "mp4a"
           }
-        }
-      ];
+        });
+      }
+      const activeText = nativeTextTracks.find((t) => t.mode === "showing");
+      if (activeText) {
+        const idx = nativeTextTracks.indexOf(activeText);
+        current.push({
+          type: "TEXT",
+          index: idx >= 0 ? idx : 0,
+          extra_info: {
+            track_lang: activeText.language || "und",
+            fourCC: "subt"
+          }
+        });
+      }
+      return current;
     },
 
     _handleNativeEvent(event) {
@@ -202,6 +243,9 @@ export function createVegaPlayerBridge() {
       if (Array.isArray(event.audioTracks)) {
         nativeAudioTracks = event.audioTracks;
       }
+      if (Array.isArray(event.textTracks)) {
+        nativeTextTracks = event.textTracks;
+      }
 
       switch (name) {
         case "audiotracks":
@@ -210,11 +254,20 @@ export function createVegaPlayerBridge() {
           }
           break;
 
+        case "texttracks":
+          if (Array.isArray(event.textTracks)) {
+            nativeTextTracks = event.textTracks;
+          }
+          break;
+
         case "canplay":
         case "loadedmetadata":
         case "loadeddata":
           if (Array.isArray(event.audioTracks)) {
             nativeAudioTracks = event.audioTracks;
+          }
+          if (Array.isArray(event.textTracks)) {
+            nativeTextTracks = event.textTracks;
           }
           if (state === "IDLE") {
             state = "READY";

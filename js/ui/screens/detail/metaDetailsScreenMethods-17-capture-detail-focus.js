@@ -133,7 +133,7 @@ export function createMetaDetailsScreenMethods17() {
         this.trailerHasAutoplayed ||
         !content ||
         Number(content.scrollTop || 0) > 160 ||
-        !focused?.matches?.('.series-detail-actions [data-action="playDefault"]') ||
+        !focused?.closest?.(".series-detail-actions") ||
         this.seasonHoldMenu ||
         this.episodeHoldMenu ||
         this.heroPlayMenu ||
