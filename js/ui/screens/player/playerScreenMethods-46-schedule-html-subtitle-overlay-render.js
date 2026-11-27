@@ -77,7 +77,11 @@ export function createPlayerScreenMethods46() {
       return /^\s*\d+\s*,\s*\d+\s*,\s*(?:Onscreen\d*|Screen)\s*,/i.test(payload) && payload.split(",").length >= 6;
     },
     renderAvPlaySubtitleChange(detail = {}) {
-      if (!Environment.isTizen() || typeof PlayerController.isUsingAvPlay !== "function" || !PlayerController.isUsingAvPlay()) {
+      if (
+        (!Environment.isTizen() && !Environment.isVega?.()) ||
+        typeof PlayerController.isUsingAvPlay !== "function" ||
+        !PlayerController.isUsingAvPlay()
+      ) {
         return;
       }
       const diagnosticSelectionAt = Number(detail?.diagnosticSelectionAt || 0);

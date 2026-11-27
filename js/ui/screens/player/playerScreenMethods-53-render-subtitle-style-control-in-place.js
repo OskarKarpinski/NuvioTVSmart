@@ -266,7 +266,11 @@ export function createPlayerScreenMethods53() {
 
       let applied = false;
       const useTizenEmbeddedTextHtmlFallback = isTizenEmbeddedTextSubtitleFallbackTrack(embeddedTrack);
-      if (Environment.isTizen() && typeof PlayerController.isUsingAvPlay === "function" && PlayerController.isUsingAvPlay()) {
+      if (
+        (Environment.isTizen() || Environment.isVega?.()) &&
+        typeof PlayerController.isUsingAvPlay === "function" &&
+        PlayerController.isUsingAvPlay()
+      ) {
         const nativeTrackIndex = Number(embeddedTrack?.nativeTrackIndex);
         applied =
           typeof PlayerController.setAvPlaySubtitleTrack === "function" && Number.isFinite(nativeTrackIndex)

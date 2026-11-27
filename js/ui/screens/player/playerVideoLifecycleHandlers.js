@@ -247,7 +247,7 @@ export function createPlayerVideoLifecycleHandlers(video, isTizenAvPlayPlayback)
     // Tizen can publish AVPlay's audio list before the header metadata is
     // loaded. Start that read before the startup preference pass so the first
     // AVPlay track is not latched while the languages are still missing.
-    if (Environment.isTizen()) {
+    if (Environment.isTizen() || Environment.isVega?.()) {
       const avplayAudioTracks = typeof PlayerController.getAvPlayAudioTracks === "function" ? PlayerController.getAvPlayAudioTracks() : [];
       const needsEmbeddedAudioMetadata =
         !avplayAudioTracks.length || avplayAudioTracks.some((track) => !getUsableAudioTrackLanguageValue(track));

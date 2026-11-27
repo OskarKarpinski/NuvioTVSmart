@@ -150,7 +150,7 @@ export function createPlayerControllerMethods14() {
       return targetSpeed;
     },
     getSupportedPlaybackRates() {
-      if (Platform.isTizen() && this.isUsingAvPlay()) {
+      if ((Platform.isTizen() || Platform.isVega?.()) && this.isUsingAvPlay()) {
         // AVPlay setSpeed() is trick play, not Android-style playback-speed
         // processing. It cannot guarantee that audio is tempo-adjusted with
         // video, so only expose the rate that preserves A/V synchronization.

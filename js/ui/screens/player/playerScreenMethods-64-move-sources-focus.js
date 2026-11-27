@@ -250,7 +250,7 @@ export function createPlayerScreenMethods64() {
         // The post-play mini window keeps the same aspect handling as the
         // full-screen player, like Android's player surface modifier.
         this.aspectDisplayMethod = rect.displayMethod;
-        const usingTizenAvPlay = Boolean(Environment.isTizen() && PlayerController.isUsingAvPlay?.());
+        const usingTizenAvPlay = Boolean((Environment.isTizen() || Environment.isVega?.()) && PlayerController.isUsingAvPlay?.());
         const usingTizenHtmlVideo = Environment.isTizen() && !usingTizenAvPlay;
         // Keep the video element on the player viewport wherever native text
         // tracks render inside it. Tizen positions those cues against the

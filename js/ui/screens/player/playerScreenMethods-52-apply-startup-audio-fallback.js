@@ -459,7 +459,7 @@ export function createPlayerScreenMethods52() {
           ((Array.isArray(this.htmlSubtitleCues) && this.htmlSubtitleCues.length > 0) ||
             PlayerController.shouldRenderAvPlaySubtitleCallbacksInHtml?.()))
       );
-      const usingTizenAvPlay = Boolean(Environment.isTizen() && PlayerController.isUsingAvPlay?.());
+      const usingTizenAvPlay = Boolean((Environment.isTizen() || Environment.isVega?.()) && PlayerController.isUsingAvPlay?.());
       const rendererMode = htmlRendererActive ? "html" : PlayerController.getAvPlaySubtitleOutputMode?.() || "none";
       const usingWebOsNative = Boolean(Environment.isWebOS() && PlayerController.isUsingNativePlayback?.() && !htmlRendererActive);
       const availability = resolveSubtitleStyleControlAvailability({

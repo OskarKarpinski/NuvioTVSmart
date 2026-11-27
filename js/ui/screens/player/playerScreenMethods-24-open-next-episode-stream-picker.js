@@ -330,7 +330,7 @@ export function createPlayerScreenMethods24() {
       const subtitleFontSize = normalizeSubtitleFontSize(style.fontSize);
       const htmlSubtitleFontSize = formatHtmlSubtitleFontSize(subtitleFontSize);
       PlayerController.setWebOsSubtitleFontSize?.(subtitleFontSize);
-      if (Environment.isTizen() && PlayerController.isUsingAvPlay?.()) {
+      if ((Environment.isTizen() || Environment.isVega?.()) && PlayerController.isUsingAvPlay?.()) {
         PlayerController.setAvPlayExternalSubtitleDelay?.(this.subtitleDelayMs);
       }
       uiRoot.style.setProperty("--player-subtitle-color", subtitleColor);

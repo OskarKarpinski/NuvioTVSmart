@@ -45,7 +45,7 @@ export function createPlayerScreenMethods29() {
         });
         this.postPlayHiddenTextTrackIndexes = [];
       }
-      if (Environment.isTizen() && PlayerController.isUsingAvPlay?.()) {
+      if ((Environment.isTizen() || Environment.isVega?.()) && PlayerController.isUsingAvPlay?.()) {
         if (PlayerController.avplaySeekInFlight) {
           // Samsung rejects other AVPlay calls until seekTo() reports back.
           // Clear the memo so the next overlay sync retries the mute.
@@ -73,7 +73,7 @@ export function createPlayerScreenMethods29() {
       }
     },
     syncPostPlayPlayerSurface(state = this.getPostPlayState()) {
-      const usingAvPlay = Boolean(Environment.isTizen() && PlayerController.isUsingAvPlay?.());
+      const usingAvPlay = Boolean((Environment.isTizen() || Environment.isVega?.()) && PlayerController.isUsingAvPlay?.());
       const video = PlayerController.video;
       // Reading this native object can force style updates even on webOS.
       // Only Tizen uses the AVPlay surface; retain its visibility lifecycle.

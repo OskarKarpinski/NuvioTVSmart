@@ -21,7 +21,11 @@ export function createPlayerScreenMethods27() {
         }
       } catch (_) {}
       const isTizenAvPlayPlayback = () =>
-        Boolean(Environment.isTizen() && typeof PlayerController.isUsingAvPlay === "function" && PlayerController.isUsingAvPlay());
+        Boolean(
+          (Environment.isTizen() || Environment.isVega?.()) &&
+          typeof PlayerController.isUsingAvPlay === "function" &&
+          PlayerController.isUsingAvPlay()
+        );
       const lifecycleHandlers = createPlayerVideoLifecycleHandlers.call(this, video, isTizenAvPlayPlayback);
       const eventHandlers = createPlayerVideoEventHandlers.call(this, video, isTizenAvPlayPlayback);
       const { onWaiting, onPlaying, onPause, onProgress, onTimeUpdate, onLoadedMetadata, onPlayable, onSeeked, onTrackListChanged } =

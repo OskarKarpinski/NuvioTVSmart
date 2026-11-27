@@ -367,7 +367,11 @@ export function createPlayerScreenMethods30() {
       return true;
     },
     isTizenAvPlaySeekActive() {
-      return Boolean(Environment.isTizen() && typeof PlayerController.isUsingAvPlay === "function" && PlayerController.isUsingAvPlay());
+      return Boolean(
+        (Environment.isTizen() || Environment.isVega?.()) &&
+        typeof PlayerController.isUsingAvPlay === "function" &&
+        PlayerController.isUsingAvPlay()
+      );
     },
     hasSeekLoadingSettled() {
       if (this.seekLoadingSettled) {

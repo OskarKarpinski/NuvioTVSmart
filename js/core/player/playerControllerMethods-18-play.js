@@ -315,7 +315,7 @@ export function createPlayerControllerMethods18() {
 
       // Lets PlayerScreen retry a stuck direct AVPlay start through the local proxy.
       this.lastTizenAvPlayRoute =
-        Platform.isTizen() && preferredEngine === this.getPlatformAvplayEngineName()
+        (Platform.isTizen() || Platform.isVega?.()) && preferredEngine === this.getPlatformAvplayEngineName()
           ? { url: requestedUrl, viaLocalProxy: routedThroughLocalProxy }
           : null;
       if (preferredEngine === this.getPlatformAvplayEngineName()) {
@@ -327,7 +327,9 @@ export function createPlayerControllerMethods18() {
             throw new Error("AVPlay could not start HLS while the Tizen playback proxy was unavailable");
           }
           const isRemoteProgressiveTizenSource =
-            Platform.isTizen() && nativeFallbackEngine === "native-file" && this.isRemoteDirectHttpSource(playbackUrl);
+            (Platform.isTizen() || Platform.isVega?.()) &&
+            nativeFallbackEngine === "native-file" &&
+            this.isRemoteDirectHttpSource(playbackUrl);
           if (isRemoteProgressiveTizenSource) {
             if (!this.isPlaybackRequestActive(playToken, playbackUrl)) {
               return;

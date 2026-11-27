@@ -186,7 +186,7 @@ export function createPlayerScreenMethods50() {
     },
     isTizenAvPlayStartupAudioRetryPending() {
       return Boolean(
-        Environment.isTizen() &&
+        (Environment.isTizen() || Environment.isVega?.()) &&
         typeof PlayerController.isUsingAvPlay === "function" &&
         PlayerController.isUsingAvPlay() &&
         Number(this.startupAudioPreferenceRetryDeadline || 0) > Date.now()
@@ -197,7 +197,9 @@ export function createPlayerScreenMethods50() {
     },
     scheduleStartupAudioPreferenceRetry() {
       const canRetryTizenAvPlay = Boolean(
-        Environment.isTizen() && typeof PlayerController.isUsingAvPlay === "function" && PlayerController.isUsingAvPlay()
+        (Environment.isTizen() || Environment.isVega?.()) &&
+        typeof PlayerController.isUsingAvPlay === "function" &&
+        PlayerController.isUsingAvPlay()
       );
       const canRetryWebOsTracks = Environment.isWebOS();
       if (!canRetryTizenAvPlay && !canRetryWebOsTracks) {

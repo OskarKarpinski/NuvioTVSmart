@@ -113,10 +113,10 @@ export function createPlayerControllerMethods12() {
         pushCandidate(candidates, avplayEngine);
       }
       // Android keeps progressive network playback in a native Media3/OkHttp
-      // pipeline. On Tizen, retrying a remote AVPlay failure with the browser
+      // pipeline. On Tizen and Vega, retrying a remote AVPlay failure with the browser
       // video element creates a second, misleading CORS/Same-Origin failure (or source not supported).
-      // Keep the HTML fallback for Vega, local EngineFS URLs, and non-Tizen platforms.
-      if (!isTizenRuntime || !isRemoteDirectHttpSource) {
+      // Keep the HTML fallback for local EngineFS URLs and non-TV platforms.
+      if ((!isTizenRuntime && !isVegaRuntime) || !isRemoteDirectHttpSource) {
         pushCandidate(candidates, "native-file");
       }
       if (!isTizenRuntime && !isVegaRuntime && canUseAvPlay) {
