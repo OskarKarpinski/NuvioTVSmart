@@ -95,10 +95,43 @@ test("createVegaPlayerBridge drives native player lifecycle and callbacks", () =
     assert.equal(totalTracks.length, 2);
     assert.equal(totalTracks[0].name, "English");
     assert.equal(totalTracks[1].extra_info.track_lang, "pol");
+    assert.equal(totalTracks[0].extra_info.fourCC, "opus");
 
     const currentStream = bridge.getCurrentStreamInfo();
     assert.equal(currentStream.length, 1);
     assert.equal(currentStream[0].index, 0);
+    assert.equal(currentStream[0].extra_info.fourCC, "opus");
+
+    bridge._handleNativeEvent({
+      name: "audiotracks",
+      audioTracks: [
+        {
+          index: 0,
+          label: "Hindi AMZN DDP 5.1 640 Kbps",
+          language: "hin",
+          enabled: false,
+          title: "Hindi AMZN DDP 5.1 640 Kbps",
+          sourceCodec: "eac3",
+          sourceChannels: "5.1",
+          sampleRate: 48000
+        },
+        {
+          index: 1,
+          label: "English AAC 5.1",
+          language: "eng",
+          enabled: true,
+          title: "English AAC 5.1",
+          sourceCodec: "aac",
+          sourceChannels: "5.1",
+          sampleRate: 48000
+        }
+      ]
+    });
+    const richTracks = bridge.getTotalTrackInfo();
+    assert.equal(richTracks[0].name, "Hindi AMZN DDP 5.1 640 Kbps");
+    assert.equal(richTracks[0].extra_info.source_codec, "eac3");
+    assert.equal(richTracks[0].extra_info.channels, "5.1");
+    assert.equal(bridge.getCurrentStreamInfo()[0].name, "English AAC 5.1");
 
     bridge.setSelectTrack("AUDIO", 1);
     assert.deepEqual(messages[messages.length - 1], {

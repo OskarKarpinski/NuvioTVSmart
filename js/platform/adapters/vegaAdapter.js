@@ -198,10 +198,16 @@ export function createVegaPlayerBridge() {
       const audio = nativeAudioTracks.map((t, idx) => ({
         type: "AUDIO",
         index: idx,
-        name: t.label || t.language || `Track ${idx + 1}`,
+        name: t.title || t.label || t.language || `Track ${idx + 1}`,
         extra_info: {
           track_lang: t.language || "und",
-          fourCC: "opus"
+          title: t.title || "",
+          fourCC: "opus",
+          codec: "opus",
+          channels: t.sourceChannels || "2",
+          sampleRate: t.sampleRate || 48000,
+          source_codec: t.sourceCodec || "",
+          source_channels: t.sourceChannels || ""
         }
       }));
       const text = nativeTextTracks.map((t, idx) => ({
@@ -228,9 +234,17 @@ export function createVegaPlayerBridge() {
         current.push({
           type: "AUDIO",
           index: idx >= 0 ? idx : 0,
+          name:
+            activeAudio.title || activeAudio.label || activeAudio.language || `Track ${idx + 1}`,
           extra_info: {
             track_lang: activeAudio.language || "und",
-            fourCC: "mp4a"
+            title: activeAudio.title || "",
+            fourCC: "opus",
+            codec: "opus",
+            channels: activeAudio.sourceChannels || "2",
+            sampleRate: activeAudio.sampleRate || 48000,
+            source_codec: activeAudio.sourceCodec || "",
+            source_channels: activeAudio.sourceChannels || ""
           }
         });
       }
