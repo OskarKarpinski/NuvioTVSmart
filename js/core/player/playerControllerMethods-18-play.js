@@ -315,7 +315,7 @@ export function createPlayerControllerMethods18() {
 
       // Lets PlayerScreen retry a stuck direct AVPlay start through the local proxy.
       this.lastTizenAvPlayRoute =
-        (Platform.isTizen() || Platform.isVega?.()) && preferredEngine === this.getPlatformAvplayEngineName()
+        Platform.isTizen() && preferredEngine === this.getPlatformAvplayEngineName()
           ? { url: requestedUrl, viaLocalProxy: routedThroughLocalProxy }
           : null;
       if (preferredEngine === this.getPlatformAvplayEngineName()) {

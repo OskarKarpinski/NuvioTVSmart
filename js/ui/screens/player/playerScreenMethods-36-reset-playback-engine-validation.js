@@ -225,6 +225,9 @@ export function createPlayerScreenMethods36() {
     // index is at the end. The local proxy rewrites the response headers, so
     // a direct AVPlay start that gets stuck is retried through it once.
     canRetryTizenAvPlayThroughLocalProxy() {
+      if (!Environment.isTizen()) {
+        return false;
+      }
       const url = String(this.activePlaybackUrl || "").trim();
       const route = PlayerController.lastTizenAvPlayRoute;
       return Boolean(
