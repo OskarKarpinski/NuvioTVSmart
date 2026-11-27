@@ -1,10 +1,15 @@
 import { createStreamRedirectReporter } from "./streamRedirect.js";
 import { applyAdaptiveRequestHeaders } from "./adaptiveRequestHeaders.js";
+import { createClearKeyPlaylistLoader } from "./clearKeyEme.js";
 /* eslint-disable no-unused-vars */
 import * as internals from "./playerController.js";
 
 const HLS_MAX_NETWORK_RECOVERY_ATTEMPTS = 2;
 const HLS_NETWORK_RECOVERY_DELAY_MS = 1500;
+// Samsung reports an unsupported audio track as a decode error on the audio
+// SourceBuffer (for example MP3 in HLS) and hls.js keeps resetting the pipeline
+// without a fatal event, so the engine ladder below never runs (#1614).
+const HLS_MAX_AUDIO_APPEND_FAILURES = 3;
 
 export function createPlayerControllerMethods13() {
   const {
@@ -37,6 +42,8 @@ export function createPlayerControllerMethods13() {
       const forwardedHeaders = this.normalizePlaybackHeaders(requestHeaders);
       const isWebOs = Platform.isWebOS();
       const isLivePlayback = this.isLivePlaybackItemType();
+      const Hls = hlsJsEngine.getConstructor();
+      const clearKeyLoader = this.currentClearKeys && Hls ? createClearKeyPlaylistLoader(Hls) : null;
       return {
         autoStartLoad: false,
         enableWorker: !isWebOs,
@@ -80,7 +87,10 @@ export function createPlayerControllerMethods13() {
             ...initParams,
             headers
           });
-        }
+        },
+        // The ClearKey pairs are already in the CDM: skip the key tag hls.js
+        // would otherwise download (see createClearKeyPlaylistLoader).
+        ...(clearKeyLoader ? { loader: clearKeyLoader } : {})
       };
     },
     playWithHlsJs(url, requestHeaders = {}, playToken = null) {
@@ -105,6 +115,7 @@ export function createPlayerControllerMethods13() {
       this.playbackEngine = "hls.js";
       let networkRecoveryAttempts = 0;
       let mediaRecoveryAttempts = 0;
+      let audioAppendFailures = 0;
 
       const emitFatalHlsNetworkError = (data = {}, responseCode = 0) => {
         this.lastPlaybackErrorCode = 2;
@@ -133,6 +144,30 @@ export function createPlayerControllerMethods13() {
           // ladder to expire.
           if (responseCode === 416 && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
             emitFatalHlsNetworkError(data, responseCode);
+          }
+          // A repeated audio append failure with nothing buffered means this
+          // pipeline cannot decode the track. hls.js retries it without ever
+          // going fatal, which leaves the player frozen on the first frame;
+          // surface it so the existing engine ladder (AVPlay on Tizen) runs.
+          const sourceBuffer = String(data.sourceBufferName || data.parent || "").toLowerCase();
+          if (
+            data.type === Hls.ErrorTypes.MEDIA_ERROR &&
+            sourceBuffer === "audio" &&
+            (data.details === "bufferAppendingError" || data.details === "mediaSourceRequiresReset") &&
+            Number(this.video?.readyState || 0) === 0
+          ) {
+            audioAppendFailures += 1;
+            if (audioAppendFailures >= HLS_MAX_AUDIO_APPEND_FAILURES) {
+              this.lastPlaybackErrorCode = 3;
+              this.teardownHlsInstance();
+              this.emitVideoEvent("error", {
+                playbackEngine: "hls.js",
+                mediaErrorCode: 3,
+                hlsErrorType: String(data.type || ""),
+                hlsErrorDetails: String(data.details || "")
+              });
+              return;
+            }
           }
           return;
         }
@@ -193,6 +228,7 @@ export function createPlayerControllerMethods13() {
       // Android resets its retry budget once playback progresses again.
       hls.on(Hls.Events.FRAG_BUFFERED, () => {
         networkRecoveryAttempts = 0;
+        audioAppendFailures = 0;
       });
 
       hls.on(Hls.Events.MEDIA_ATTACHED, () => {
@@ -300,6 +336,13 @@ export function createPlayerControllerMethods13() {
             scheduling: {
               scheduleWhilePaused: false
             },
+            ...(this.currentClearKeys
+              ? {
+                  // Our ClearKey CDM decrypts the samples; dash.js must not react
+                  // to the media's `encrypted` event with a key system of its own.
+                  protection: { ignoreEmeEncryptedEvent: true }
+                }
+              : {}),
             liveCatchup: {
               enabled: false
             }
@@ -310,6 +353,18 @@ export function createPlayerControllerMethods13() {
           player.addRequestInterceptor((request) => applyAdaptiveRequestHeaders(request, forwardedHeaders, url));
         }
         const reportRedirect = createStreamRedirectReporter(this, url, playToken);
+        if (this.currentClearKeys) {
+          // The MPD advertises Widevine/PlayReady for the same CENC samples. Our
+          // ClearKey CDM decrypts them; without this dash.js would create a
+          // session for that key system and request its license (on LG an
+          // invalid endpoint that times out). Treat the stream as plain MSE.
+          player.addResponseInterceptor((response) => {
+            if (typeof response?.data === "string" && response.data.includes("<MPD")) {
+              response.data = response.data.replace(/<ContentProtection\b[^>]*\/>|<ContentProtection\b[\s\S]*?<\/ContentProtection>/g, "");
+            }
+            return Promise.resolve(response);
+          });
+        }
         player.addResponseInterceptor((response) => {
           if (response.request?.url === url && response.status >= 200 && response.status < 300) {
             reportRedirect(response.url);
@@ -363,6 +418,7 @@ export function createPlayerControllerMethods13() {
         console.warn("DASH source attach failed", error);
         try {
           player?.reset?.();
+          player?.destroy?.();
         } catch (_) {
           // Ignore reset failures on partial init.
         }

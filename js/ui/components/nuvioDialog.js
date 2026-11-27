@@ -58,6 +58,8 @@ export class NuvioDialog {
     content = null,
     onVerticalNavigate = null,
     onKey = null,
+    onKeyUp = null,
+    initialFocusIndex = 0,
     suppressEnterUntilKeyUp = false
   }) {
     this.title = title;
@@ -71,9 +73,11 @@ export class NuvioDialog {
     this.content = content;
     this.onVerticalNavigate = onVerticalNavigate;
     this.onKey = onKey;
+    this.onKeyUp = onKeyUp;
+    this.initialFocusIndex = Math.max(0, Number(initialFocusIndex) || 0);
     this.suppressEnterUntilKeyUp = Boolean(suppressEnterUntilKeyUp);
 
-    this._focusedIndex = 0;
+    this._focusedIndex = this.initialFocusIndex;
     this._destroyed = false;
     this._backdrop = null;
     this._panel = null;
@@ -114,7 +118,7 @@ export class NuvioDialog {
   }
 
   mount(container = document.body) {
-    this._ambientHandler = () => this._dismiss();
+    this._ambientHandler = () => this._dismiss("ambient");
     document.addEventListener("nuvio:ambient-shown", this._ambientHandler);
     // Backdrop
     const backdrop = document.createElement("div");
@@ -176,9 +180,14 @@ export class NuvioDialog {
         el.appendChild(label);
         this._setButtonSelected(el, Boolean(btn.selected));
         el.dataset.key = btn.key || String(i);
-        el.addEventListener("click", () => {
+        el.addEventListener("click", (event) => {
+          // A key held since before the menu opened can make the TV browser fire keyboard clicks
+          // (detail 0) on the focused button; they are not a choice (Android waits for a fresh press).
+          if (this._enterSuppressed && event?.detail === 0) return;
           if (btn.onAction) btn.onAction();
         });
+        // Magic Remote pointer: move the highlight with the cursor.
+        el.addEventListener("mouseenter", () => this._focusIndex(i));
         actions.appendChild(el);
         this._buttonEls.push(el);
       });
@@ -203,7 +212,12 @@ export class NuvioDialog {
     window.addEventListener("keyup", this._keyUpHandler, { capture: true });
 
     // Focus first button after 2 frames (matches ATV LaunchedEffect repeat(2) { withFrameNanos })
-    this._scheduleFrame(() => this._scheduleFrame(() => this._focusIndex(0)));
+    this._scheduleFrame(() =>
+      this._scheduleFrame(() => {
+        if (this._destroyed) return;
+        this._focusIndex(this.initialFocusIndex);
+      })
+    );
 
     // Trigger enter animation
     this._scheduleFrame(() => {
@@ -278,7 +292,7 @@ export class NuvioDialog {
       return;
     }
 
-    if (typeof this.onKey === "function" && this.onKey(key) === true) {
+    if (typeof this.onKey === "function" && this.onKey(key, e) === true) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -331,6 +345,11 @@ export class NuvioDialog {
   _onKeyUp(e) {
     if (this._destroyed) return;
     const key = this._eventKey(e);
+    if (typeof this.onKeyUp === "function" && this.onKeyUp(key, e) === true) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (key.isEnter || key.isSpace) {
       this._enterSuppressed = false;
       if (this.suppressEnterUntilKeyUp) {
@@ -340,9 +359,9 @@ export class NuvioDialog {
     }
   }
 
-  _dismiss() {
+  _dismiss(reason = "dismiss") {
     if (this._destroyed) return;
-    if (this.onDismiss) this.onDismiss();
+    if (this.onDismiss) this.onDismiss(reason);
     this.destroy();
   }
 

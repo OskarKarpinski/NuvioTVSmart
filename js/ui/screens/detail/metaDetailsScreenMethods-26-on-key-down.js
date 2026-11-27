@@ -402,6 +402,11 @@ export function createMetaDetailsScreenMethods26() {
         return;
       }
 
+      if (action === "rateTitle") {
+        this.openTitleRatingDialog();
+        return;
+      }
+
       if (action === "toggleLibrary") {
         await this.toggleLibraryFromHero();
         return;

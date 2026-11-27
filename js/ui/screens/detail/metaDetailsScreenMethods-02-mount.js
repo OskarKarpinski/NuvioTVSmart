@@ -22,6 +22,12 @@ export function createMetaDetailsScreenMethods02() {
       this.commentOverlayDialog?.destroy();
       this.commentOverlayDialog = null;
       this.commentOverlay = null;
+      this.activeRatingDialog?.close?.();
+      this.activeRatingDialog = null;
+      if (this.detailMessageTimer) {
+        clearTimeout(this.detailMessageTimer);
+        this.detailMessageTimer = null;
+      }
       this.params = params;
       this.isBackNavigation = Boolean(navigationContext?.isBackNavigation);
       this.pendingEpisodeSelection = null;
@@ -70,6 +76,9 @@ export function createMetaDetailsScreenMethods02() {
       this.trailerHasAutoplayed = false;
       this.trailerMuted = false;
       this.trailerSubtitlesEnabled = false;
+      this.trailerHandoff =
+        !this.isBackNavigation && params?.trailerHandoff && typeof params.trailerHandoff === "object" ? { ...params.trailerHandoff } : null;
+      this.trailerPendingSeekSeconds = 0;
       this.trailerMediaListeners = [];
       this.trailerUiRefs = null;
       this.trailerProgressTimer = null;

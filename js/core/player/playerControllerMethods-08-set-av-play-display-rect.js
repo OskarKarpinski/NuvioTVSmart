@@ -87,8 +87,9 @@ export function createPlayerControllerMethods08() {
       if (!Platform.isTizen()) {
         return;
       }
+      const playToken = this.playRequestToken;
       const apply = () => {
-        if (this.isUsingAvPlay()) {
+        if (this.isUsingAvPlay() && this.playRequestToken === playToken) {
           this.setAvPlayDisplayRect();
         }
       };
@@ -98,7 +99,15 @@ export function createPlayerControllerMethods08() {
       }
       apply();
     },
+    clearAvPlayPreparedPoll() {
+      if (this.avplayPreparedPollTimer) {
+        clearTimeout(this.avplayPreparedPollTimer);
+        this.avplayPreparedPollTimer = null;
+      }
+    },
     teardownAvPlay() {
+      this.clearAvPlayPreparedPoll();
+      this.avplayPreparedHandled = false;
       this.clearAvPlaySeekTimeout();
       this.avplaySeekRequestToken = Number(this.avplaySeekRequestToken || 0) + 1;
       this.avplaySeekInFlight = false;

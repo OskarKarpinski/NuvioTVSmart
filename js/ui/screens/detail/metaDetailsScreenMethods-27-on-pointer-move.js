@@ -108,6 +108,12 @@ export function createMetaDetailsScreenMethods27() {
       this.commentOverlayDialog?.destroy();
       this.commentOverlayDialog = null;
       this.commentOverlay = null;
+      this.activeRatingDialog?.close?.();
+      this.activeRatingDialog = null;
+      if (this.detailMessageTimer) {
+        clearTimeout(this.detailMessageTimer);
+        this.detailMessageTimer = null;
+      }
       this.detailLoadToken = (this.detailLoadToken || 0) + 1;
       this.cancelTraktCommentsRequest();
       if (this.seasonSwitchTimer) {
@@ -129,6 +135,13 @@ export function createMetaDetailsScreenMethods27() {
       if (this.episodeVirtualSyncRaf) {
         cancelAnimationFrame(this.episodeVirtualSyncRaf);
         this.episodeVirtualSyncRaf = null;
+      }
+      if (this._sectionsUpdateRaf) {
+        if (typeof cancelAnimationFrame === "function") {
+          cancelAnimationFrame(this._sectionsUpdateRaf);
+        }
+        clearTimeout(this._sectionsUpdateRaf);
+        this._sectionsUpdateRaf = null;
       }
       this.episodeThumbnailPrefetchCache = new Set();
       if (this.episodeThumbObserver) {
