@@ -90,7 +90,8 @@ export function createVegaPlayerBridge() {
       pendingSeek = { ms: targetMs, onSuccess, onError };
       post("seek", { positionMs: targetMs });
 
-      // Fallback: if native seeked does not arrive in 500ms, resolve to keep UI unblocked
+      // A seek rebuilds a local file from the already-downloaded master. Give
+      // that work time to finish; the native 'seeked' event normally wins.
       seekFallbackTimer = setTimeout(() => {
         seekFallbackTimer = null;
         seekingTargetMs = null;
@@ -99,7 +100,7 @@ export function createVegaPlayerBridge() {
           pendingSeek = null;
           cb.onSuccess?.();
         }
-      }, 500);
+      }, 8000);
     },
 
     stop() {
