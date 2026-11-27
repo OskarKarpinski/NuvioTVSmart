@@ -104,7 +104,8 @@ test("createVegaPlayerBridge drives native player lifecycle and callbacks", () =
     assert.deepEqual(messages[messages.length - 1], {
       type: "NUVIO_VEGA_PLAYER",
       action: "selectAudioTrack",
-      index: 1
+      index: 1,
+      trackCount: 2
     });
     const updatedStream = bridge.getCurrentStreamInfo();
     assert.equal(updatedStream[0].index, 1);

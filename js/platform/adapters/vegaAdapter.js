@@ -26,6 +26,7 @@ export function createVegaPlayerBridge() {
   let seekFallbackTimer = null;
   let nativeAudioTracks = [];
   let nativeTextTracks = [];
+  let selectedAudioTrackIndex = -1;
   let streamingProperties = {};
 
   function post(action, data = {}) {
@@ -42,6 +43,7 @@ export function createVegaPlayerBridge() {
       seekingTargetMs = null;
       nativeAudioTracks = [];
       nativeTextTracks = [];
+      selectedAudioTrackIndex = -1;
       if (seekFallbackTimer) {
         clearTimeout(seekFallbackTimer);
         seekFallbackTimer = null;
@@ -115,6 +117,7 @@ export function createVegaPlayerBridge() {
       pendingSeek = null;
       nativeAudioTracks = [];
       nativeTextTracks = [];
+      selectedAudioTrackIndex = -1;
       streamingProperties = {};
       globalThis.document?.documentElement?.classList?.remove("vega-native-player-active");
       globalThis.document?.body?.classList?.remove("vega-native-player-active");
@@ -159,10 +162,18 @@ export function createVegaPlayerBridge() {
       const normalizedType = String(type).toUpperCase();
       if (normalizedType === "AUDIO") {
         const trackIdx = Number(index);
+        if (Number.isFinite(trackIdx) && trackIdx >= 0) {
+          selectedAudioTrackIndex = trackIdx;
+        }
         nativeAudioTracks.forEach((t, i) => {
           t.enabled = i === trackIdx;
         });
-        post("selectAudioTrack", { index: trackIdx });
+        // The host remuxer marks this stream as the Matroska default track;
+        // the native enable flags are only a best-effort mirror.
+        post("selectAudioTrack", {
+          index: trackIdx,
+          trackCount: nativeAudioTracks.length
+        });
       } else if (normalizedType === "TEXT") {
         const trackIdx = Number(index);
         nativeTextTracks.forEach((t, i) => {
@@ -190,7 +201,7 @@ export function createVegaPlayerBridge() {
         name: t.label || t.language || `Track ${idx + 1}`,
         extra_info: {
           track_lang: t.language || "und",
-          fourCC: "mp4a"
+          fourCC: "opus"
         }
       }));
       const text = nativeTextTracks.map((t, idx) => ({
@@ -206,7 +217,12 @@ export function createVegaPlayerBridge() {
     },
     getCurrentStreamInfo() {
       const current = [];
-      const activeAudio = nativeAudioTracks.find((t) => t.enabled) || nativeAudioTracks[0];
+      const preferredAudio =
+        selectedAudioTrackIndex >= 0 && selectedAudioTrackIndex < nativeAudioTracks.length
+          ? nativeAudioTracks[selectedAudioTrackIndex]
+          : null;
+      const activeAudio =
+        preferredAudio || nativeAudioTracks.find((t) => t.enabled) || nativeAudioTracks[0];
       if (activeAudio) {
         const idx = nativeAudioTracks.indexOf(activeAudio);
         current.push({
