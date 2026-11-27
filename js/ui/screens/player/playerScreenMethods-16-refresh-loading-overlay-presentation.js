@@ -186,6 +186,10 @@ export function createPlayerScreenMethods16() {
       this.startupErrorMessage = "";
       this.startupErrorMediaCode = 0;
       this.startupErrorDetails = [];
+      this.startupErrorReason = "";
+      this.startupErrorEventDetail = null;
+      this.startupErrorLogsVisible = false;
+      this.startupErrorLogScroll = 0;
       this.playbackDiagnostic = null;
       this.renderStartupErrorOverlay();
     },
@@ -200,13 +204,16 @@ export function createPlayerScreenMethods16() {
     getPlaybackEventErrorDetail(eventDetail = {}) {
       const detail = eventDetail && typeof eventDetail === "object" ? eventDetail : {};
       const hlsResponseCode = Number(detail.hlsResponseCode || 0);
-      const avplayErrorDetail =
-        detail.avplayErrorDetail && typeof detail.avplayErrorDetail === "object"
-          ? JSON.stringify(detail.avplayErrorDetail)
-          : detail.avplayErrorDetail;
+      const avplayErrorDetailObject =
+        detail.avplayErrorDetail && typeof detail.avplayErrorDetail === "object" ? detail.avplayErrorDetail : null;
+      const compactAvplayDetail = avplayErrorDetailObject
+        ? JSON.stringify(Object.fromEntries(Object.entries(avplayErrorDetailObject).filter(([key]) => key !== "diagnosticLogs")))
+        : detail.avplayErrorDetail;
+      const nativeReason = avplayErrorDetailObject?.reason || detail.reason || "";
       return [
         detail.avplayError,
-        avplayErrorDetail,
+        nativeReason,
+        compactAvplayDetail === "{}" ? "" : compactAvplayDetail,
         detail.hlsErrorType,
         detail.hlsErrorDetails,
         hlsResponseCode >= 400 && hlsResponseCode <= 599 ? `HTTP ${hlsResponseCode}` : "",

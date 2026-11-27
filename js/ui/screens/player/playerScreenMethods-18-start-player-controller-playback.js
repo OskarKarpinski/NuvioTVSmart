@@ -1,4 +1,5 @@
 import { saveReusableStreamLink } from "../../../core/streams/streamLinkReuse.js";
+import { getConsoleDebugEvents } from "../../../core/diagnostics/consoleDebugBuffer.js";
 /* eslint-disable no-unused-vars */
 import * as internals from "./playerScreenContext.js";
 
@@ -102,7 +103,7 @@ export function createPlayerScreenMethods18() {
       }
       const baseMessage = this.mediaErrorMessage(code, detail, streamCandidate);
       const extra = String(detail || "").trim();
-      if (!extra || (code === 4 && this.isDebridPlaybackCandidate(streamCandidate))) {
+      if (!extra) {
         return `${baseMessage}.`;
       }
       const normalizedExtra = extra.replace(/\s+/g, " ");
@@ -165,6 +166,73 @@ export function createPlayerScreenMethods18() {
       this.clearStartupError();
       this.openSourcesPanel();
     },
+    getStartupErrorLogLines() {
+      const lines = [];
+      const push = (value) => {
+        const text = String(value ?? "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 420);
+        if (text) {
+          lines.push(text);
+        }
+      };
+      const eventDetail = this.startupErrorEventDetail || {};
+      const avplayDiagnostic = eventDetail.avplayErrorDetail || {};
+      const nativeLogs = Array.isArray(eventDetail.diagnosticLogs)
+        ? eventDetail.diagnosticLogs
+        : Array.isArray(avplayDiagnostic.diagnosticLogs)
+          ? avplayDiagnostic.diagnosticLogs
+          : [];
+
+      push(`Nuvio Vega diagnostics - ${new Date().toISOString()}`);
+      push(`Message: ${this.startupErrorMessage}`);
+      push(`Reason: ${this.startupErrorReason || avplayDiagnostic.reason || eventDetail.nativeReason || "unknown"}`);
+      push(`Media code: ${this.getPlaybackErrorCodeLabel(this.startupErrorMediaCode)}`);
+      push("Details:");
+      (Array.isArray(this.startupErrorDetails) ? this.startupErrorDetails : [])
+        .filter((line) => !String(line || "").startsWith("Native logs"))
+        .forEach(push);
+      if (nativeLogs.length) {
+        push(`Native player log (${nativeLogs.length} entries):`);
+        nativeLogs.forEach(push);
+      }
+      try {
+        const consoleEvents = getConsoleDebugEvents().slice(-60);
+        if (consoleEvents.length) {
+          push(`Console buffer (${consoleEvents.length} entries):`);
+          consoleEvents.forEach((entry) => push(`${entry.isoTime} [${entry.level}] ${entry.message}`));
+        }
+      } catch (_) {
+        push("Console buffer unavailable");
+      }
+      return lines;
+    },
+    toggleStartupErrorLogs() {
+      this.startupErrorLogsVisible = !this.startupErrorLogsVisible;
+      this.startupErrorLogScroll = 0;
+      this.renderStartupErrorOverlay();
+      const panel = this.uiRefs?.startupErrorLogsPanel;
+      try {
+        panel?.focus?.({ preventScroll: true });
+      } catch (_) {
+        panel?.focus?.();
+      }
+    },
+    scrollStartupErrorLogs(delta) {
+      if (!this.startupErrorLogsVisible) {
+        return;
+      }
+      const total = this.getStartupErrorLogLines().length;
+      const maxScroll = Math.max(0, total - 6);
+      this.startupErrorLogScroll = clamp(this.startupErrorLogScroll + delta * 6, 0, maxScroll);
+      this.renderStartupErrorOverlay();
+      try {
+        this.uiRefs?.startupErrorLogsPanel?.focus?.({ preventScroll: true });
+      } catch (_) {
+        this.uiRefs?.startupErrorLogsPanel?.focus?.();
+      }
+    },
     renderStartupErrorOverlay() {
       const overlay = this.uiRefs?.startupErrorOverlay;
       if (!overlay) {
@@ -179,7 +247,7 @@ export function createPlayerScreenMethods18() {
       }
       const message = String(this.startupErrorMessage || "").trim() || t("player_error_playback_fallback", {}, "Playback error");
       const detailLines = Array.isArray(this.startupErrorDetails) ? this.startupErrorDetails.filter(Boolean) : [];
-      const hasCandidates = Array.isArray(this.sourceCandidates) && this.sourceCandidates.length > 0;
+      const hasCandidates = Array.isArray(this.streamCandidates) && this.streamCandidates.length > 0;
       overlay.innerHTML = `
           <div class="player-startup-error-shell">
             <div class="player-startup-error-title">${escapeHtml(t("player_error_title", {}, "Playback Error"))}</div>
@@ -191,6 +259,24 @@ export function createPlayerScreenMethods18() {
                 ${detailLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}
               </div>
             `
+                : ""
+            }
+            ${
+              this.startupErrorLogsVisible
+                ? (() => {
+                    const logLines = this.getStartupErrorLogLines();
+                    const from = this.startupErrorLogScroll || 0;
+                    const visibleLines = logLines.slice(from, from + 6);
+                    return `
+              <div class="player-startup-error-logs" data-player-error-logs tabindex="-1" aria-label="Nuvio diagnostic logs">
+                <div class="player-startup-error-logs-title">
+                  ${escapeHtml(t("player_error_dump_logs", {}, "Zrzut logów"))} (${from + 1}-${Math.min(from + 6, logLines.length)}/${logLines.length})
+                </div>
+                ${visibleLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}
+                <div class="player-startup-error-logs-hint">↑/↓ — przewijanie</div>
+              </div>
+            `;
+                  })()
                 : ""
             }
             <div class="player-startup-error-actions">
@@ -206,6 +292,9 @@ export function createPlayerScreenMethods18() {
               `
                   : ""
               }
+              <button class="player-startup-error-button focusable" type="button" tabindex="-1" data-player-error-action="dumpLogs">
+                ${escapeHtml(this.startupErrorLogsVisible ? t("player_error_hide_logs", {}, "Ukryj logi") : t("player_error_dump_logs", {}, "Zrzut logów"))}
+              </button>
               <button class="player-startup-error-button focusable" type="button" tabindex="-1" data-player-error-action="back">
                 ${escapeHtml(t("player_go_back", {}, "Wróć"))}
               </button>
@@ -216,7 +305,8 @@ export function createPlayerScreenMethods18() {
         ...(this.uiRefs || {}),
         startupErrorButton:
           overlay.querySelector('.player-startup-error-button[data-player-error-action="retry"]') ||
-          overlay.querySelector(".player-startup-error-button")
+          overlay.querySelector(".player-startup-error-button"),
+        startupErrorLogsPanel: overlay.querySelector("[data-player-error-logs]")
       };
       this.focusStartupErrorButton("retry");
     },

@@ -31,6 +31,10 @@ export function createPlayerScreenMethods71() {
           this.moveStartupErrorFocus(1);
           return;
         }
+        if (this.startupErrorLogsVisible && (keyCode === 38 || keyCode === 40)) {
+          this.scrollStartupErrorLogs(keyCode === 40 ? 1 : -1);
+          return;
+        }
         if (isSelectKeyCode(keyCode) || keyCode === 66 || keyCode === 13) {
           const focusedBtn =
             this.uiRefs?.startupErrorOverlay?.querySelector(".player-startup-error-button.focused") || document.activeElement;
@@ -41,6 +45,10 @@ export function createPlayerScreenMethods71() {
           }
           if (action === "sources") {
             this.chooseSourceAfterError();
+            return;
+          }
+          if (action === "dumpLogs") {
+            this.toggleStartupErrorLogs();
             return;
           }
           if (!this.navigateBackToStreamScreen()) {

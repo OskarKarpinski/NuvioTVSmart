@@ -328,6 +328,34 @@
   transform: scale(1.05);
 }
 
+.player-startup-error-logs {
+  width: min(1100px, 92vw);
+  max-height: 34vh;
+  overflow: hidden;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(4, 8, 16, 0.92);
+  color: #dce6f2;
+  font-family: monospace;
+  font-size: 15px;
+  line-height: 1.45;
+  text-align: left;
+  pointer-events: auto;
+}
+
+.player-startup-error-logs-title {
+  margin-bottom: 8px;
+  color: #8ab4f8;
+  font-weight: 700;
+}
+
+.player-startup-error-logs-hint {
+  margin-top: 8px;
+  color: #a8b6c8;
+  font-size: 13px;
+}
+
 .player-torrent-overlay {
   position: fixed;
   top: 24px;

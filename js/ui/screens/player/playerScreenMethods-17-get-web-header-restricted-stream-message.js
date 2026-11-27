@@ -101,6 +101,29 @@ export function createPlayerScreenMethods17() {
       pushPlaybackDiagnosticLine(lines, "HLS error", eventDetail?.hlsErrorDetails || eventDetail?.hlsErrorType || rememberedHlsError, 420);
       pushPlaybackDiagnosticLine(lines, "DASH error", eventDetail?.dashError);
       pushPlaybackDiagnosticLine(lines, "AVPlay error", eventDetail?.avplayError);
+      let parsedNativeDiagnostic = null;
+      if (avplayErrorDiagnostic && typeof avplayErrorDiagnostic === "object") {
+        if (Array.isArray(avplayErrorDiagnostic.diagnosticLogs)) {
+          parsedNativeDiagnostic = avplayErrorDiagnostic;
+        } else if (typeof avplayErrorDiagnostic.message === "string" && avplayErrorDiagnostic.message.startsWith("{")) {
+          try {
+            parsedNativeDiagnostic = JSON.parse(avplayErrorDiagnostic.message);
+          } catch (_) {
+            // Keep raw string.
+          }
+        }
+      }
+      const nativeLogs = Array.isArray(parsedNativeDiagnostic?.diagnosticLogs)
+        ? parsedNativeDiagnostic.diagnosticLogs
+        : Array.isArray(eventDetail?.diagnosticLogs)
+          ? eventDetail.diagnosticLogs
+          : [];
+      if (nativeLogs.length) {
+        pushPlaybackDiagnosticLine(lines, "Native logs", nativeLogs.slice(-30).join(" | "), 1400);
+      }
+      if (this.playbackDiagnostic?.explanation) {
+        pushPlaybackDiagnosticLine(lines, "Diagnosis", this.playbackDiagnostic.explanation, 420);
+      }
       pushPlaybackDiagnosticLine(
         lines,
         "AVPlay error detail",
@@ -195,22 +218,41 @@ export function createPlayerScreenMethods17() {
       ) {
         return;
       }
-      this.startupErrorMessage = String(message || "").trim() || t("player_error_playback_fallback", {}, "Playback error");
+      const nativeReason = eventDetail?.nativeReason || eventDetail?.avplayErrorDetail?.reason || "";
+      const effectiveReason = nativeReason || reason;
+      const nativeLogs = Array.isArray(eventDetail?.diagnosticLogs)
+        ? eventDetail.diagnosticLogs
+        : Array.isArray(eventDetail?.avplayErrorDetail?.diagnosticLogs)
+          ? eventDetail.avplayErrorDetail.diagnosticLogs
+          : [];
+      const runtimeDetail = [detail, error?.message, ...nativeLogs].filter(Boolean).join(" ");
       this.startupErrorMediaCode = Number(mediaErrorCode || 0);
+      this.startupErrorReason = effectiveReason;
+      this.startupErrorEventDetail = eventDetail || null;
+      this.startupErrorLogsVisible = false;
+      this.startupErrorLogScroll = 0;
       const httpStatus = extractPlaybackHttpStatus(
         [detail, error?.message, error?.name, error?.errorText, error?.status].filter(Boolean).join(" ")
       );
       this.playbackDiagnostic = diagnosePlaybackFailure({
         mediaErrorCode,
         httpStatus,
-        reason,
-        runtimeDetail: detail || error?.message,
+        reason: effectiveReason,
+        runtimeDetail,
         avplayError: eventDetail?.avplayError,
         candidate:
           streamCandidate || this.getStreamCandidateByUrl(playbackUrl || this.activePlaybackUrl) || this.getCurrentStreamCandidate(),
         playbackUrl: playbackUrl || this.activePlaybackUrl,
         platform: Environment.isVega?.() ? "vega" : Environment.isWebOS?.() ? "webos" : Environment.isTizen?.() ? "tizen" : "browser"
       });
+      // When a native signature identified the real failure, show that diagnosis
+      // as the primary message instead of a generic "Playback error".
+      const diagnosticMessage =
+        this.playbackDiagnostic?.category === "format"
+          ? [this.playbackDiagnostic.title, this.playbackDiagnostic.explanation].filter(Boolean).join("\n\n")
+          : "";
+      this.startupErrorMessage =
+        diagnosticMessage || String(message || "").trim() || t("player_error_playback_fallback", {}, "Playback error");
       this.startupErrorDetails = Array.isArray(details)
         ? details.map((line) => cleanPlaybackDiagnosticValue(line)).filter(Boolean)
         : this.getPlaybackErrorDetailLines({

@@ -479,8 +479,7 @@ export function getAudioTrackSupportState(track = {}) {
   const compatText = getWebOsAudioTrackCompatibilityText(track);
   return {
     supported,
-    canTryAudioConversion:
-      !supported && (Environment.isWebOS() || Environment.isVega?.()) && /dts|true[\s_-]*hd|mlp[\s_-]*fba/i.test(compatText),
+    canTryAudioConversion: !supported && Environment.isWebOS() && /dts|true[\s_-]*hd|mlp[\s_-]*fba/i.test(compatText),
     unsupportedReason: supported ? null : "codec"
   };
 }

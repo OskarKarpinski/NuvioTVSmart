@@ -41,14 +41,14 @@ test("Vega OS correctly identifies unsupported audio codecs (DTS, TrueHD) and ma
     assert.equal(isUnsupportedVegaAudioTrack(dtsTrack), true);
     const dtsSupport = getAudioTrackSupportState(dtsTrack);
     assert.equal(dtsSupport.supported, false);
-    assert.equal(dtsSupport.canTryAudioConversion, true);
+    assert.equal(dtsSupport.canTryAudioConversion, false);
     assert.equal(dtsSupport.unsupportedReason, "codec");
 
     const trueHdTrack = { codec: "truehd", audioCodec: "truehd", name: "Dolby TrueHD 7.1" };
     assert.equal(isUnsupportedVegaAudioTrack(trueHdTrack), true);
     const trueHdSupport = getAudioTrackSupportState(trueHdTrack);
     assert.equal(trueHdSupport.supported, false);
-    assert.equal(trueHdSupport.canTryAudioConversion, true);
+    assert.equal(trueHdSupport.canTryAudioConversion, false);
 
     const ac3Track = { codec: "ac3", audioCodec: "ac3", name: "English AC3 5.1" };
     assert.equal(isUnsupportedVegaAudioTrack(ac3Track), false);

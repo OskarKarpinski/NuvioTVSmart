@@ -279,8 +279,16 @@ export function createVegaPlayerBridge() {
           }
           break;
 
-        case "canplay":
         case "loadedmetadata":
+          if (Array.isArray(event.audioTracks)) {
+            nativeAudioTracks = event.audioTracks;
+          }
+          if (Array.isArray(event.textTracks)) {
+            nativeTextTracks = event.textTracks;
+          }
+          break;
+
+        case "canplay":
         case "loadeddata":
           if (Array.isArray(event.audioTracks)) {
             nativeAudioTracks = event.audioTracks;
@@ -348,6 +356,27 @@ export function createVegaPlayerBridge() {
               : typeof event.error?.message === "string"
                 ? event.error.message
                 : "Native playback error";
+          const detailsPayload =
+            event.details && typeof event.details === "object"
+              ? {
+                  ...event.details,
+                  reason: event.details.reason || event.reason || "VEGA_NATIVE_ERROR",
+                  message: event.details.message || errText,
+                  code: event.code ?? event.details.code
+                }
+              : {
+                  reason: event.reason || "VEGA_NATIVE_ERROR",
+                  message: errText,
+                  code: event.code
+                };
+          try {
+            currentListener?.onerrormsg?.(
+              detailsPayload.reason || "VEGA_NATIVE_ERROR",
+              JSON.stringify(detailsPayload)
+            );
+          } catch (_) {
+            // Best effort diagnostic forwarding.
+          }
           if (pendingPrepare) {
             const cb = pendingPrepare;
             pendingPrepare = null;
@@ -369,6 +398,11 @@ export const vegaAdapter = {
     globalThis.document?.body?.classList?.add("vega-tv");
     if (!globalThis.__NUVIO_VEGA_PLAYER__) {
       globalThis.__NUVIO_VEGA_PLAYER__ = createVegaPlayerBridge();
+    }
+    try {
+      globalThis.__NUVIO_VEGA_DRAIN_EVENTS__?.();
+    } catch (_) {
+      // Events will be delivered by the native onLoad drain instead.
     }
   },
 

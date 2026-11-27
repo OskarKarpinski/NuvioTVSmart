@@ -47,3 +47,40 @@ test("diagnosePlaybackFailure identifies startup stall", () => {
   assert.equal(result.category, "stall");
   assert.ok(result.badge.includes("Stall"));
 });
+
+test("analyzeStreamCodecs does not treat DVDRip or .dev URL as Dolby Vision", () => {
+  const codecs = analyzeStreamCodecs(
+    "Movie.2024.1080p.DVDRip.x264.AAC",
+    "https://pixeldrain.dev/api/file/7raRDQU4?download"
+  );
+  assert.equal(codecs.hdr.includes("Dolby Vision"), false);
+});
+
+test("diagnosePlaybackFailure flags E-AC3/DDP on Fire TV Vega during preroll timeout or stall", () => {
+  const result = diagnosePlaybackFailure({
+    candidate: {
+      name: "Mr.Robot.S02E01-E02.1080p.BluRay.10bit.HEVC.[Hindi.DDP.5.1+English.AAC.5.1].mkv"
+    },
+    playbackUrl: "https://pixeldrain.dev/api/file/7raRDQU4?download",
+    reason: "native-preroll-timeout",
+    runtimeDetail: "Vega native player preroll timeout",
+    platform: "vega"
+  });
+  assert.equal(result.category, "format");
+  assert.ok(result.explanation.includes("E-AC3/DDP"));
+});
+
+test("diagnosePlaybackFailure uses native GStreamer audio signature, not only the filename", () => {
+  const result = diagnosePlaybackFailure({
+    mediaErrorCode: 3,
+    candidate: { name: "Movie.2024.1080p.HEVC.mkv" },
+    playbackUrl: "https://source.example.com/stream.mkv",
+    reason: "native-media-error",
+    runtimeDetail:
+      "WARN bin gstbin.c Name 'audiodecoder' is not unique in bin, not adding; ERROR PlaybackPipelineBuilderImpl.cpp Failed to link inputMultiQueueSrc to decoderSink; audio/x-eac3",
+    platform: "vega"
+  });
+  assert.equal(result.category, "format");
+  assert.match(result.title, /Błąd dekodowania audio/);
+  assert.ok(result.explanation.includes("E-AC3/DDP"));
+});

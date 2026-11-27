@@ -190,14 +190,16 @@ export function createPlayerControllerMethods09() {
             this.isPlaying = false;
             this.syncWebOsPlaybackKeepAwake();
             this.avplayBufferingStartedAt = 0;
-            this.lastPlaybackErrorCode = this.mapAvPlayErrorToMediaCode(errorValue);
+            this.lastPlaybackErrorCode = this.mapAvPlayErrorToMediaCode(errorValue, avplayErrorDetail);
             this.stopAvPlayTickTimer();
             this.emitVideoEvent("error", {
               playbackEngine: this.playbackEngine,
               mediaErrorCode: this.lastPlaybackErrorCode,
               avplayError: String(errorValue || ""),
               avplayErrorDetail,
-              avplaySnapshot
+              avplaySnapshot,
+              nativeReason: avplayErrorDetail?.reason || "",
+              diagnosticLogs: avplayErrorDetail?.diagnosticLogs || []
             });
           },
           onerrormsg: (errorType, errorMessage) => {
@@ -206,7 +208,7 @@ export function createPlayerControllerMethods09() {
             }
             const detail = this.normalizeAvPlayErrorDiagnostic(errorType, errorMessage);
             this.avplayLastErrorDiagnostic = detail;
-            if (Platform.isTizen() && detail) {
+            if ((Platform.isTizen() || Platform.isVega?.()) && detail) {
               console.warn("[Nuvio AVPlay error detail]", detail);
             }
           }
@@ -253,7 +255,7 @@ export function createPlayerControllerMethods09() {
         }
         const avplayErrorDetail = this.getLastAvPlayErrorDiagnostic();
         const avplaySnapshot = this.getAvPlayDiagnosticSnapshot();
-        this.lastPlaybackErrorCode = this.mapAvPlayErrorToMediaCode(errorValue);
+        this.lastPlaybackErrorCode = this.mapAvPlayErrorToMediaCode(errorValue, avplayErrorDetail);
         this.isPlaying = false;
         this.syncWebOsPlaybackKeepAwake();
         this.teardownAvPlay();
@@ -263,7 +265,9 @@ export function createPlayerControllerMethods09() {
           mediaErrorCode: this.lastPlaybackErrorCode,
           avplayError: String(errorValue || ""),
           avplayErrorDetail,
-          avplaySnapshot
+          avplaySnapshot,
+          nativeReason: avplayErrorDetail?.reason || "",
+          diagnosticLogs: avplayErrorDetail?.diagnosticLogs || []
         });
       };
 

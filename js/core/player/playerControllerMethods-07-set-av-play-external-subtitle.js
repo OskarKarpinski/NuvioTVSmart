@@ -201,16 +201,40 @@ export function createPlayerControllerMethods07() {
         aspect: displayAspect || (width / height) * pixelAspect
       };
     },
-    mapAvPlayErrorToMediaCode(errorValue) {
-      const errorText = String(errorValue || "").toLowerCase();
-      if (!errorText) {
+    mapAvPlayErrorToMediaCode(errorValue, errorDetail = null) {
+      const detail = errorDetail && typeof errorDetail === "object" ? errorDetail : {};
+      const errorText = [errorValue, detail.reason, detail.message, detail.audioCodec, detail.codec]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!errorText.trim()) {
         return 4;
       }
-      if (errorText.includes("network") || errorText.includes("connection") || errorText.includes("timeout")) {
-        return 2;
-      }
-      if (errorText.includes("decode")) {
+      // An audio pipeline failure is a decode error even when the native
+      // message also mentions a timeout or a generic "preroll stall".
+      const audioDecodeSignature =
+        errorText.includes("audiodecoder") ||
+        errorText.includes("audio decoder") ||
+        errorText.includes("link pads") ||
+        errorText.includes("linkto") ||
+        errorText.includes("inputmultiqueuesrc") ||
+        errorText.includes("novaaudiosink") ||
+        errorText.includes("eac3") ||
+        errorText.includes("ddp") ||
+        errorText.includes("truehd") ||
+        errorText.includes("audio/x-") ||
+        errorText.includes("audio decode") ||
+        errorText.includes("decode audio");
+      if (audioDecodeSignature || errorText.includes("decode")) {
         return 3;
+      }
+      if (
+        errorText.includes("network") ||
+        errorText.includes("connection") ||
+        errorText.includes("timeout") ||
+        errorText.includes("http")
+      ) {
+        return 2;
       }
       return 4;
     },

@@ -148,7 +148,10 @@ export function createPlayerScreenMethods37() {
           // one falls back to the local proxy instead of waiting a minute.
           return TIZEN_AVPLAY_DIRECT_STARTUP_STALL_TIMEOUT_MS;
         }
-        if (Environment.isTizen() || Environment.isWebOS() || Environment.isVega?.()) {
+        if (Environment.isVega?.()) {
+          return 18000;
+        }
+        if (Environment.isTizen() || Environment.isWebOS()) {
           return playbackEngine.endsWith("avplay") ? 60000 : 45000;
         }
         return 18000;

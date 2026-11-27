@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { vegaAdapter } from "./vegaAdapter.js";
+import { createVegaPlayerBridge, vegaAdapter } from "./vegaAdapter.js";
 import { Platform } from "../index.js";
 
 test("vegaAdapter reports Vega OS metadata and capabilities", () => {
@@ -23,6 +23,8 @@ test("createVegaPlayerBridge drives native player lifecycle and callbacks", () =
     }
   };
 
+  const previousPlayer = globalThis.__NUVIO_VEGA_PLAYER__;
+  delete globalThis.__NUVIO_VEGA_PLAYER__;
   try {
     const bridge = vegaAdapter.init() || globalThis.__NUVIO_VEGA_PLAYER__;
     assert.ok(bridge);
@@ -40,7 +42,8 @@ test("createVegaPlayerBridge drives native player lifecycle and callbacks", () =
     assert.deepEqual(messages[0], {
       type: "NUVIO_VEGA_PLAYER",
       action: "open",
-      url: "https://example.com/test.mkv"
+      url: "https://example.com/test.mkv",
+      headers: {}
     });
 
     bridge.prepareAsync(
@@ -49,7 +52,7 @@ test("createVegaPlayerBridge drives native player lifecycle and callbacks", () =
       },
       () => {}
     );
-    assert.deepEqual(messages[1], { type: "NUVIO_VEGA_PLAYER", action: "prepare" });
+    assert.deepEqual(messages[1], { type: "NUVIO_VEGA_PLAYER", action: "prepare", headers: {} });
 
     bridge._handleNativeEvent({ name: "canplay", duration: 120.5 });
     assert.equal(preparedFired, true);
@@ -140,6 +143,11 @@ test("createVegaPlayerBridge drives native player lifecycle and callbacks", () =
     });
   } finally {
     globalThis.ReactNativeWebView = previousBridge;
+    if (previousPlayer) {
+      globalThis.__NUVIO_VEGA_PLAYER__ = previousPlayer;
+    } else {
+      delete globalThis.__NUVIO_VEGA_PLAYER__;
+    }
   }
 });
 
@@ -189,5 +197,52 @@ test("Platform detects vega when __NUVIO_PLATFORM__ is set", () => {
   } finally {
     globalThis.__NUVIO_PLATFORM__ = prevPlatform;
     Platform.current = prevCurrent;
+  }
+});
+
+test("vegaAdapter keeps IDLE on loadedmetadata and forwards native error diagnostics via onerrormsg", () => {
+  const previousBridge = globalThis.ReactNativeWebView;
+  globalThis.ReactNativeWebView = { postMessage() {} };
+  try {
+    const bridge = createVegaPlayerBridge();
+    let prepared = false;
+    let errMsgPayload = null;
+    let errText = null;
+    bridge.setListener({
+      onerrormsg(type, payload) {
+        errMsgPayload = { type, payload: JSON.parse(payload) };
+      },
+      onerror(msg) {
+        errText = msg;
+      }
+    });
+    bridge.open("https://example.com/test.mkv");
+    bridge.prepareAsync(() => {
+      prepared = true;
+    });
+    bridge._handleNativeEvent({ name: "loadedmetadata", duration: 60 });
+    assert.equal(prepared, false);
+    assert.equal(bridge.getState(), "IDLE");
+    assert.equal(bridge.getDuration(), 60000);
+
+    bridge._handleNativeEvent({
+      name: "error",
+      error: "Vega native player preroll timeout",
+      code: 4,
+      details: {
+        reason: "native-preroll-timeout",
+        readyState: 0,
+        diagnosticLogs: ["12:00:00.000 [open]", "12:00:15.000 [preroll_timeout]"]
+      }
+    });
+    assert.equal(bridge.getState(), "NONE");
+    assert.equal(errMsgPayload?.type, "native-preroll-timeout");
+    assert.deepEqual(errMsgPayload?.payload?.diagnosticLogs, [
+      "12:00:00.000 [open]",
+      "12:00:15.000 [preroll_timeout]"
+    ]);
+    assert.equal(errText, "Vega native player preroll timeout");
+  } finally {
+    globalThis.ReactNativeWebView = previousBridge;
   }
 });

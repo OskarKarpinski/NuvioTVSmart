@@ -38,6 +38,10 @@ export function createPlayerScreenMethods70() {
           this.chooseSourceAfterError();
           return true;
         }
+        if (action === "dumpLogs") {
+          this.toggleStartupErrorLogs();
+          return true;
+        }
         return false;
       }
 

@@ -320,6 +320,11 @@ export function createPlayerControllerMethods10() {
         detail.errorType = normalizedErrorType;
       }
 
+      const isSensitiveDiagnostic = (value) =>
+        /["']?\s*(?:authorization|cookie|user-agent|request[_ ]header|response[_ ]header|http_request_header|http_response_header)\s*["']?\s*[:=]/i.test(
+          String(value ?? "")
+        );
+
       const parsed = this.parseAvPlayExtraInfo(errorMessage);
       const allowedFields = {
         error_code: "errorCode",
@@ -355,17 +360,43 @@ export function createPlayerControllerMethods10() {
             detail[outputKey] = safeValue;
           }
         });
+
+        // Vega sends a structured native payload here. Keep the fields that
+        // actually identify the failure instead of flattening them away.
+        const rawMessage = parsed.message ?? parsed.errorText ?? parsed.sourceError;
+        if (!isSensitiveDiagnostic(rawMessage)) {
+          const safeMessage = this.sanitizePlaybackDiagnosticText(rawMessage, 320);
+          if (safeMessage) {
+            detail.message = safeMessage;
+          }
+        }
+        const safeReason = this.sanitizePlaybackDiagnosticText(parsed.reason ?? normalizedErrorType, 120);
+        if (safeReason) {
+          detail.reason = safeReason;
+        }
+        const numericCode = Number(parsed.code ?? parsed.errorCode ?? parsed.error_code);
+        if (Number.isFinite(numericCode) && numericCode > 0) {
+          detail.code = numericCode;
+        }
+        if (Array.isArray(parsed.diagnosticLogs)) {
+          detail.diagnosticLogs = parsed.diagnosticLogs
+            .slice(-30)
+            .map((entry) => this.sanitizePlaybackDiagnosticText(entry, 220))
+            .filter(Boolean);
+        }
+        if (Number.isFinite(Number(parsed.readyState))) {
+          detail.readyState = Number(parsed.readyState);
+        }
+        if (Number.isFinite(Number(parsed.networkState))) {
+          detail.networkState = Number(parsed.networkState);
+        }
       } else {
         // AVPlay documents errorMsg as JSON. Older firmware may return plain
         // text, but do not retain it when it resembles a header or request
         // diagnostic; redaction alone cannot make arbitrary header content
         // safe to display.
         const plainMessage = String(errorMessage || "");
-        const containsSensitiveDiagnostic =
-          /["']?\s*(?:authorization|cookie|user-agent|request[_ ]header|response[_ ]header|http_request_header|http_response_header)\s*["']?\s*[:=]/i.test(
-            plainMessage
-          );
-        if (!containsSensitiveDiagnostic) {
+        if (!isSensitiveDiagnostic(plainMessage)) {
           const safeMessage = this.sanitizePlaybackDiagnosticText(plainMessage, 240);
           if (safeMessage) {
             detail.message = safeMessage;

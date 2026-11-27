@@ -111,8 +111,7 @@ export function analyzeStreamCodecs(text = "", url = "") {
   if (
     combined.includes("DOVI") ||
     combined.includes("DOLBY VISION") ||
-    combined.includes("DV") ||
-    /\bDV\b/.test(combined)
+    /\b(DV|DVHE|DVH1)\b/.test(combined)
   ) {
     info.hdr.push("Dolby Vision");
   }
@@ -227,32 +226,77 @@ export function diagnosePlaybackFailure({
     };
   }
 
-  // 3. Niezgodność kodeków na Fire TV (np. DTS-HD, Dolby TrueHD, Dolby Vision)
+  // 3. Niezgodność kodeków na Fire TV (np. DTS-HD, Dolby TrueHD, Dolby Vision, E-AC3/DDP)
   const hasDts = codecs.audio.some((a) => a.includes("DTS"));
   const hasTrueHd = codecs.audio.some((a) => a.includes("TrueHD"));
+  const hasEac3 = codecs.audio.some((a) => a.includes("E-AC3") || a.includes("AC3"));
   const hasDovi = codecs.hdr.some((h) => h.includes("Dolby Vision"));
+  const normalizedRuntimeDetail =
+    typeof runtimeDetail === "string" ? runtimeDetail.toLowerCase() : "";
+  const nativeAudioPipelineFailure =
+    normalizedRuntimeDetail.includes("audiodecoder") ||
+    normalizedRuntimeDetail.includes("audio decoder") ||
+    normalizedRuntimeDetail.includes("linkto") ||
+    normalizedRuntimeDetail.includes("link pads") ||
+    normalizedRuntimeDetail.includes("inputmultiqueuesrc") ||
+    normalizedRuntimeDetail.includes("novaaudiosink") ||
+    normalizedRuntimeDetail.includes("audio/x-eac3") ||
+    normalizedRuntimeDetail.includes("audio/x-ac3");
+  const eac3PipelineSignature =
+    nativeAudioPipelineFailure &&
+    (normalizedRuntimeDetail.includes("eac3") ||
+      normalizedRuntimeDetail.includes("ddp") ||
+      normalizedRuntimeDetail.includes("audio/x-ac3") ||
+      normalizedRuntimeDetail.includes("ac3"));
+  const isPrerollTimeout =
+    reason === "native-preroll-timeout" ||
+    normalizedRuntimeDetail.includes("preroll") ||
+    nativeAudioPipelineFailure;
   const isCodecUnsupported =
     mediaErrorCode === 3 ||
     mediaErrorCode === 4 ||
-    (typeof runtimeDetail === "string" &&
-      (runtimeDetail.includes("format") ||
-        runtimeDetail.includes("supported") ||
-        runtimeDetail.includes("decode")));
+    isPrerollTimeout ||
+    normalizedRuntimeDetail.includes("format") ||
+    normalizedRuntimeDetail.includes("supported") ||
+    normalizedRuntimeDetail.includes("decode");
 
-  if (hasDts || hasTrueHd || (hasDovi && isVega)) {
+  if (isVega && nativeAudioPipelineFailure) {
+    return {
+      category: "format",
+      badge: "Błąd dekodowania audio",
+      icon: "🔊",
+      title: eac3PipelineSignature
+        ? "Błąd dekodowania audio: E-AC3/DDP (Dolby Digital Plus)"
+        : "Błąd dekodowania audio w natywnym odtwarzaczu",
+      explanation: eac3PipelineSignature
+        ? "Strumień zawiera ścieżkę E-AC3/DDP (Dolby Digital Plus), która zablokowała odtwarzacz natywny Vega OS. E-AC3 wymaga przesyłania dźwięku przez HDMI (passthrough); gdy telewizor akceptuje tylko PCM, a urządzenie 3. gen nie ma lokalnego dekodera E-AC3, potok zatrzymuje się przed canplay."
+        : "Natywny potok GStreamer nie zdołał połączyć dekodera audio i zatrzymał się przed rozpoczęciem odtwarzania.",
+      recommendation:
+        "Wybierz wydanie z dźwiękiem AAC lub stereo. Jeśli chcesz zachować DDP, włącz passthrough Dolby w ustawieniach dźwięku Fire TV i podłącz telewizor/amplituner obsługujący Dolby Digital Plus.",
+      host,
+      codecs
+    };
+  }
+
+  if (
+    hasDts ||
+    hasTrueHd ||
+    (hasDovi && isVega) ||
+    (isVega && hasEac3 && (isCodecUnsupported || reason === "startup-stall"))
+  ) {
     const unsupportedList = [];
     if (hasDts) unsupportedList.push("DTS / DTS-HD");
     if (hasTrueHd) unsupportedList.push("Dolby TrueHD");
+    if (hasEac3 && isVega) unsupportedList.push("Dolby Digital Plus (E-AC3/DDP)");
     if (hasDovi && isVega) unsupportedList.push("Dolby Vision (profil DV)");
 
     return {
       category: "format",
       badge: "Nieobsługiwany kodek audio/wideo",
       icon: "🎞️",
-      title: "Format nieobsługiwany przez Fire TV",
-      explanation: `To wydanie zawiera kodek (${unsupportedList.join(", ")}), którego ten odtwarzacz Fire TV nie dekoduje sprzętowo. Z tego powodu serial nie może wystartować.`,
-      recommendation:
-        "Wybierz wydanie z powszechnym dźwiękiem AAC lub AC3 (Dolby Digital) oraz standardowym HDR10/SDR.",
+      title: "Format wymagający innej ścieżki audio",
+      explanation: `To wydanie zawiera kodek (${unsupportedList.join(", ")}), którego natywny odtwarzacz Vega OS nie dekoduje lokalnie. DTS i Dolby wymagają passthrough HDMI obsługiwanego przez telewizor/amplituner.`,
+      recommendation: "Wybierz wydanie z dźwiękiem AAC lub stereo (bez DDP/EAC3/DTS/TrueHD).",
       host,
       codecs
     };
@@ -264,8 +308,10 @@ export function diagnosePlaybackFailure({
       badge: "Błąd dekodera wideo/audio",
       icon: "🎞️",
       title: "Odtwarzacz nie obsługuje tego strumienia",
-      explanation: `Odtwarzacz systemowy zgłosił brak zgodności kodeka lub kontenera wideo (kod błędu: ${mediaErrorCode}).`,
-      recommendation: "Wybierz źródło w formacie MP4 lub z kodekiem H.264 i dźwiękiem AAC.",
+      explanation: isPrerollTimeout
+        ? "Natywny potok odtwarzania Vega OS zawiesił się podczas inicjalizacji dekoderów (preroll timeout). Najczęściej oznacza to nieobsługiwaną ścieżkę audio lub błąd kontenera."
+        : `Odtwarzacz systemowy zgłosił brak zgodności kodeka lub kontenera wideo (kod błędu: ${mediaErrorCode}).`,
+      recommendation: "Wybierz źródło w formacie MP4 lub z kodekiem H.264/HEVC i dźwiękiem AAC.",
       host,
       codecs
     };
@@ -279,7 +325,7 @@ export function diagnosePlaybackFailure({
       icon: "⏱️",
       title: "Serwer nie rozpoczął transmisji wideo",
       explanation:
-        "Odtwarzacz połączył się z adresem, ale przez 15 sekund nie otrzymał żadnych danych wideo od serwera (odebrano 0 klatek). Najczęściej oznacza to przeciążony host, zawieszony strumień lub nieobsługiwany kontener MKV bez indeksu klatek.",
+        "Odtwarzacz połączył się z adresem, ale nie otrzymał gotowych klatek do odtworzenia (odebrano 0 klatek). Najczęściej oznacza to przeciążony host, zawieszony strumień lub nieobsługiwany format audio/MKV.",
       recommendation: "Wybierz inne źródło z listy lub wybierz mniejszy plik/inne wydanie.",
       host,
       codecs

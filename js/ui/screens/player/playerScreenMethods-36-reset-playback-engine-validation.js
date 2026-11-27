@@ -9,6 +9,7 @@ const TIZEN_AVPLAY_CONNECTION_RETRY_STABLE_RESET_DELAY_MS = 5000;
 export function createPlayerScreenMethods36() {
   const {
     PlayerController,
+    Environment,
     requestWebOsCompanionService,
     STARTUP_PLAYBACK_ADVANCE_EPSILON_SECONDS,
     PLAYBACK_ENGINE_VALIDATION_WINDOW_MS,
