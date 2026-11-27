@@ -17,6 +17,28 @@
   border-color: var(--player-focus-ring);
 }
 
+/* The audio dialog needs the same readable focus states as subtitles. Without
+   these, the dark focus background was combined with the dark selected text
+   colour, making the focused row impossible to read. */
+.player-audio-modal .player-dialog-item.focused:not(.selected) {
+  border-color: var(--player-focus-ring);
+  background: transparent;
+  color: var(--player-atv-text-primary);
+}
+
+.player-audio-modal .player-dialog-item.selected.focused {
+  border-color: var(--player-focus-ring);
+  background: var(--player-secondary);
+  color: var(--player-on-secondary);
+}
+
+.player-audio-modal .player-dialog-item.selected.focused .player-dialog-item-main,
+.player-audio-modal .player-dialog-item.selected.focused .player-dialog-item-language,
+.player-audio-modal .player-dialog-item.selected.focused .player-dialog-item-sub,
+.player-audio-modal .player-dialog-item.selected.focused .player-dialog-item-check {
+  color: var(--player-on-secondary);
+}
+
 .player-dialog-item.selected .player-dialog-item-main,
 .player-dialog-item.selected .player-dialog-item-sub,
 .player-dialog-item.selected .player-dialog-item-check,
