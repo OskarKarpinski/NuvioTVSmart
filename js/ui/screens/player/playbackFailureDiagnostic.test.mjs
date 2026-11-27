@@ -16,15 +16,17 @@ test("analyzeStreamCodecs detects DTS, HEVC 10-bit, 1080p, MKV and Remux", () =>
   assert.ok(codecs.video.includes("H.264 (AVC)"));
 });
 
-test("diagnosePlaybackFailure flags DTS on Fire TV Vega as format incompatibility", () => {
+test("diagnosePlaybackFailure flags DTS only when the runtime shows a DTS audio signature", () => {
   const result = diagnosePlaybackFailure({
     candidate: { name: "Mr.Robot.S01E01.1080p.BluRay.x264.DTS-HD.MA.5.1" },
     playbackUrl: "https://rd.example.com/video.mkv",
     reason: "startup-stall",
+    runtimeDetail:
+      "WARN bin gstbin.c Name 'audiodecoder' is not unique in bin; ERROR Failed to link inputMultiQueueSrc to decoderSink; audio/x-dts",
     platform: "vega"
   });
   assert.equal(result.category, "format");
-  assert.ok(result.explanation.includes("DTS"));
+  assert.ok(result.title.includes("DTS"));
   assert.ok(result.recommendation.includes("AAC"));
 });
 
@@ -56,7 +58,7 @@ test("analyzeStreamCodecs does not treat DVDRip or .dev URL as Dolby Vision", ()
   assert.equal(codecs.hdr.includes("Dolby Vision"), false);
 });
 
-test("diagnosePlaybackFailure flags E-AC3/DDP on Fire TV Vega during preroll timeout or stall", () => {
+test("diagnosePlaybackFailure does not blame E-AC3 from the release name alone", () => {
   const result = diagnosePlaybackFailure({
     candidate: {
       name: "Mr.Robot.S02E01-E02.1080p.BluRay.10bit.HEVC.[Hindi.DDP.5.1+English.AAC.5.1].mkv"
@@ -64,6 +66,22 @@ test("diagnosePlaybackFailure flags E-AC3/DDP on Fire TV Vega during preroll tim
     playbackUrl: "https://pixeldrain.dev/api/file/7raRDQU4?download",
     reason: "native-preroll-timeout",
     runtimeDetail: "Vega native player preroll timeout",
+    platform: "vega"
+  });
+  assert.equal(result.category, "format");
+  assert.ok(!result.explanation.includes("E-AC3/DDP"));
+  assert.ok(!result.title.includes("E-AC3/DDP"));
+});
+
+test("diagnosePlaybackFailure flags E-AC3/DDP only with a native audio pipeline signature", () => {
+  const result = diagnosePlaybackFailure({
+    candidate: {
+      name: "Mr.Robot.S02E01-E02.1080p.BluRay.10bit.HEVC.[Hindi.DDP.5.1+English.AAC.5.1].mkv"
+    },
+    playbackUrl: "https://pixeldrain.dev/api/file/7raRDQU4?download",
+    reason: "native-preroll-timeout",
+    runtimeDetail:
+      "WARN bin gstbin.c Name 'audiodecoder' is not unique in bin; ERROR PlaybackPipelineBuilderImpl.cpp Failed to link inputMultiQueueSrc to decoderSink; audio/x-eac3",
     platform: "vega"
   });
   assert.equal(result.category, "format");

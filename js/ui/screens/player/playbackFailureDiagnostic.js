@@ -227,12 +227,12 @@ export function diagnosePlaybackFailure({
   }
 
   // 3. Niezgodność kodeków na Fire TV (np. DTS-HD, Dolby TrueHD, Dolby Vision, E-AC3/DDP)
-  const hasDts = codecs.audio.some((a) => a.includes("DTS"));
-  const hasTrueHd = codecs.audio.some((a) => a.includes("TrueHD"));
-  const hasEac3 = codecs.audio.some((a) => a.includes("E-AC3") || a.includes("AC3"));
   const hasDovi = codecs.hdr.some((h) => h.includes("Dolby Vision"));
   const normalizedRuntimeDetail =
     typeof runtimeDetail === "string" ? runtimeDetail.toLowerCase() : "";
+  // Codec names in the release title are only badges. The audio diagnosis must
+  // come from a real native/ffmpeg pipeline signature: a filename containing
+  // DDP is not proof that the failed stream still carried E-AC3 after remuxing.
   const nativeAudioPipelineFailure =
     normalizedRuntimeDetail.includes("audiodecoder") ||
     normalizedRuntimeDetail.includes("audio decoder") ||
@@ -241,13 +241,25 @@ export function diagnosePlaybackFailure({
     normalizedRuntimeDetail.includes("inputmultiqueuesrc") ||
     normalizedRuntimeDetail.includes("novaaudiosink") ||
     normalizedRuntimeDetail.includes("audio/x-eac3") ||
-    normalizedRuntimeDetail.includes("audio/x-ac3");
-  const eac3PipelineSignature =
-    nativeAudioPipelineFailure &&
-    (normalizedRuntimeDetail.includes("eac3") ||
-      normalizedRuntimeDetail.includes("ddp") ||
-      normalizedRuntimeDetail.includes("audio/x-ac3") ||
-      normalizedRuntimeDetail.includes("ac3"));
+    normalizedRuntimeDetail.includes("audio/x-ac3") ||
+    normalizedRuntimeDetail.includes("audio/x-dts") ||
+    normalizedRuntimeDetail.includes("audio/x-truehd");
+  // Require GStreamer caps or an explicit EC-3 codec signature. Bare release
+  // tokens such as "DDP" in a title/URL must not be treated as runtime proof.
+  const signatureHasEac3 =
+    normalizedRuntimeDetail.includes("audio/x-eac3") ||
+    normalizedRuntimeDetail.includes("audio/eac3") ||
+    normalizedRuntimeDetail.includes("ec-3");
+  const signatureHasAc3 =
+    !signatureHasEac3 &&
+    (normalizedRuntimeDetail.includes("audio/x-ac3") ||
+      normalizedRuntimeDetail.includes("audio/ac3"));
+  const signatureHasDts =
+    normalizedRuntimeDetail.includes("audio/x-dts") || /\bdts\b/.test(normalizedRuntimeDetail);
+  const signatureHasTrueHd =
+    normalizedRuntimeDetail.includes("audio/x-truehd") ||
+    /\btruehd\b/.test(normalizedRuntimeDetail);
+  const eac3PipelineSignature = nativeAudioPipelineFailure && (signatureHasEac3 || signatureHasAc3);
   const isPrerollTimeout =
     reason === "native-preroll-timeout" ||
     normalizedRuntimeDetail.includes("preroll") ||
@@ -261,16 +273,27 @@ export function diagnosePlaybackFailure({
     normalizedRuntimeDetail.includes("decode");
 
   if (isVega && nativeAudioPipelineFailure) {
+    const signedAudioCodecs = [];
+    if (eac3PipelineSignature) signedAudioCodecs.push("E-AC3/DDP (Dolby Digital Plus)");
+    if (signatureHasDts) signedAudioCodecs.push("DTS / DTS-HD");
+    if (signatureHasTrueHd) signedAudioCodecs.push("Dolby TrueHD");
+    const signedCodecText = signedAudioCodecs.length ? signedAudioCodecs.join(", ") : "";
+    const title = eac3PipelineSignature
+      ? "Błąd dekodowania audio: E-AC3/DDP (Dolby Digital Plus)"
+      : signatureHasDts
+        ? "Błąd dekodowania audio: DTS / DTS-HD"
+        : signatureHasTrueHd
+          ? "Błąd dekodowania audio: Dolby TrueHD"
+          : "Błąd dekodowania audio w natywnym odtwarzaczu";
+    const explanation = signedCodecText
+      ? `Natywny potok Vega OS zgłosił błąd dekodera audio dla: ${signedCodecText}. Potok zatrzymał się przed rozpoczęciem odtwarzania, mimo że źródło mogło zostać wcześniej zremuksowane.`
+      : "Natywny potok GStreamer nie zdołał połączyć dekodera audio i zatrzymał się przed rozpoczęciem odtwarzania.";
     return {
       category: "format",
       badge: "Błąd dekodowania audio",
       icon: "🔊",
-      title: eac3PipelineSignature
-        ? "Błąd dekodowania audio: E-AC3/DDP (Dolby Digital Plus)"
-        : "Błąd dekodowania audio w natywnym odtwarzaczu",
-      explanation: eac3PipelineSignature
-        ? "Strumień zawiera ścieżkę E-AC3/DDP (Dolby Digital Plus), która zablokowała odtwarzacz natywny Vega OS. E-AC3 wymaga przesyłania dźwięku przez HDMI (passthrough); gdy telewizor akceptuje tylko PCM, a urządzenie 3. gen nie ma lokalnego dekodera E-AC3, potok zatrzymuje się przed canplay."
-        : "Natywny potok GStreamer nie zdołał połączyć dekodera audio i zatrzymał się przed rozpoczęciem odtwarzania.",
+      title,
+      explanation,
       recommendation:
         "Wybierz wydanie z dźwiękiem AAC lub stereo. Jeśli chcesz zachować DDP, włącz passthrough Dolby w ustawieniach dźwięku Fire TV i podłącz telewizor/amplituner obsługujący Dolby Digital Plus.",
       host,
@@ -278,25 +301,15 @@ export function diagnosePlaybackFailure({
     };
   }
 
-  if (
-    hasDts ||
-    hasTrueHd ||
-    (hasDovi && isVega) ||
-    (isVega && hasEac3 && (isCodecUnsupported || reason === "startup-stall"))
-  ) {
-    const unsupportedList = [];
-    if (hasDts) unsupportedList.push("DTS / DTS-HD");
-    if (hasTrueHd) unsupportedList.push("Dolby TrueHD");
-    if (hasEac3 && isVega) unsupportedList.push("Dolby Digital Plus (E-AC3/DDP)");
-    if (hasDovi && isVega) unsupportedList.push("Dolby Vision (profil DV)");
-
+  if (hasDovi && isVega) {
     return {
       category: "format",
-      badge: "Nieobsługiwany kodek audio/wideo",
+      badge: "Nieobsługiwany profil wideo",
       icon: "🎞️",
-      title: "Format wymagający innej ścieżki audio",
-      explanation: `To wydanie zawiera kodek (${unsupportedList.join(", ")}), którego natywny odtwarzacz Vega OS nie dekoduje lokalnie. DTS i Dolby wymagają passthrough HDMI obsługiwanego przez telewizor/amplituner.`,
-      recommendation: "Wybierz wydanie z dźwiękiem AAC lub stereo (bez DDP/EAC3/DTS/TrueHD).",
+      title: "Format wymagający innej ścieżki wideo",
+      explanation:
+        "To wydanie zawiera Dolby Vision (profil DV), którego natywny odtwarzacz Vega OS nie dekoduje lokalnie.",
+      recommendation: "Wybierz wydanie w HDR10 lub SDR bez profilu Dolby Vision.",
       host,
       codecs
     };
